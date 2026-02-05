@@ -1,0 +1,718 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<!-- 2026-02-05 Thu 11:59 -->
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Binder - Manuscript Binding Tool</title>
+<meta name="generator" content="Org Mode" />
+<style type="text/css">
+  #content { max-width: 60em; margin: auto; }
+  .title  { text-align: center;
+             margin-bottom: .2em; }
+  .subtitle { text-align: center;
+              font-size: medium;
+              font-weight: bold;
+              margin-top:0; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { font-family: monospace; color: green; }
+  .priority { font-family: monospace; color: orange; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #e6e6e6;
+    border-radius: 3px;
+    background-color: #f2f2f2;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: auto;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    top: -8px;
+    right: 12px;
+    padding: 3px;
+    color: #555;
+    background-color: #f2f2f299;
+  }
+  pre.src:hover:before { display: inline; margin-top: 14px;}
+  /* Languages per Org manual */
+  pre.src-asymptote:before { content: 'Asymptote'; }
+  pre.src-awk:before { content: 'Awk'; }
+  pre.src-authinfo::before { content: 'Authinfo'; }
+  pre.src-C:before { content: 'C'; }
+  /* pre.src-C++ doesn't work in CSS */
+  pre.src-clojure:before { content: 'Clojure'; }
+  pre.src-css:before { content: 'CSS'; }
+  pre.src-D:before { content: 'D'; }
+  pre.src-ditaa:before { content: 'ditaa'; }
+  pre.src-dot:before { content: 'Graphviz'; }
+  pre.src-calc:before { content: 'Emacs Calc'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-fortran:before { content: 'Fortran'; }
+  pre.src-gnuplot:before { content: 'gnuplot'; }
+  pre.src-haskell:before { content: 'Haskell'; }
+  pre.src-hledger:before { content: 'hledger'; }
+  pre.src-java:before { content: 'Java'; }
+  pre.src-js:before { content: 'Javascript'; }
+  pre.src-latex:before { content: 'LaTeX'; }
+  pre.src-ledger:before { content: 'Ledger'; }
+  pre.src-lisp:before { content: 'Lisp'; }
+  pre.src-lilypond:before { content: 'Lilypond'; }
+  pre.src-lua:before { content: 'Lua'; }
+  pre.src-matlab:before { content: 'MATLAB'; }
+  pre.src-mscgen:before { content: 'Mscgen'; }
+  pre.src-ocaml:before { content: 'Objective Caml'; }
+  pre.src-octave:before { content: 'Octave'; }
+  pre.src-org:before { content: 'Org mode'; }
+  pre.src-oz:before { content: 'OZ'; }
+  pre.src-plantuml:before { content: 'Plantuml'; }
+  pre.src-processing:before { content: 'Processing.js'; }
+  pre.src-python:before { content: 'Python'; }
+  pre.src-R:before { content: 'R'; }
+  pre.src-ruby:before { content: 'Ruby'; }
+  pre.src-sass:before { content: 'Sass'; }
+  pre.src-scheme:before { content: 'Scheme'; }
+  pre.src-screen:before { content: 'Gnu Screen'; }
+  pre.src-sed:before { content: 'Sed'; }
+  pre.src-sh:before { content: 'shell'; }
+  pre.src-sql:before { content: 'SQL'; }
+  pre.src-sqlite:before { content: 'SQLite'; }
+  /* additional languages in org.el's org-babel-load-languages alist */
+  pre.src-forth:before { content: 'Forth'; }
+  pre.src-io:before { content: 'IO'; }
+  pre.src-J:before { content: 'J'; }
+  pre.src-makefile:before { content: 'Makefile'; }
+  pre.src-maxima:before { content: 'Maxima'; }
+  pre.src-perl:before { content: 'Perl'; }
+  pre.src-picolisp:before { content: 'Pico Lisp'; }
+  pre.src-scala:before { content: 'Scala'; }
+  pre.src-shell:before { content: 'Shell Script'; }
+  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
+  /* additional language identifiers per "defun org-babel-execute"
+       in ob-*.el */
+  pre.src-cpp:before  { content: 'C++'; }
+  pre.src-abc:before  { content: 'ABC'; }
+  pre.src-coq:before  { content: 'Coq'; }
+  pre.src-groovy:before  { content: 'Groovy'; }
+  /* additional language identifiers from org-babel-shell-names in
+     ob-shell.el: ob-shell is the only babel language using a lambda to put
+     the execution function name together. */
+  pre.src-bash:before  { content: 'bash'; }
+  pre.src-csh:before  { content: 'csh'; }
+  pre.src-ash:before  { content: 'ash'; }
+  pre.src-dash:before  { content: 'dash'; }
+  pre.src-ksh:before  { content: 'ksh'; }
+  pre.src-mksh:before  { content: 'mksh'; }
+  pre.src-posh:before  { content: 'posh'; }
+  /* Additional Emacs modes also supported by the LaTeX listings package */
+  pre.src-ada:before { content: 'Ada'; }
+  pre.src-asm:before { content: 'Assembler'; }
+  pre.src-caml:before { content: 'Caml'; }
+  pre.src-delphi:before { content: 'Delphi'; }
+  pre.src-html:before { content: 'HTML'; }
+  pre.src-idl:before { content: 'IDL'; }
+  pre.src-mercury:before { content: 'Mercury'; }
+  pre.src-metapost:before { content: 'MetaPost'; }
+  pre.src-modula-2:before { content: 'Modula-2'; }
+  pre.src-pascal:before { content: 'Pascal'; }
+  pre.src-ps:before { content: 'PostScript'; }
+  pre.src-prolog:before { content: 'Prolog'; }
+  pre.src-simula:before { content: 'Simula'; }
+  pre.src-tcl:before { content: 'tcl'; }
+  pre.src-tex:before { content: 'TeX'; }
+  pre.src-plain-tex:before { content: 'Plain TeX'; }
+  pre.src-verilog:before { content: 'Verilog'; }
+  pre.src-vhdl:before { content: 'VHDL'; }
+  pre.src-xml:before { content: 'XML'; }
+  pre.src-nxml:before { content: 'XML'; }
+  /* add a generic configuration mode; LaTeX export needs an additional
+     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
+  pre.src-conf:before { content: 'Configuration File'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.org-right  { text-align: center;  }
+  th.org-left   { text-align: center;   }
+  th.org-center { text-align: center; }
+  td.org-right  { text-align: right;  }
+  td.org-left   { text-align: left;   }
+  td.org-center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara { display: inline; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .equation-container {
+    display: table;
+    text-align: center;
+    width: 100%;
+  }
+  .equation {
+    vertical-align: middle;
+  }
+  .equation-label {
+    display: table-cell;
+    text-align: right;
+    vertical-align: middle;
+  }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  .org-svg { }
+</style>
+<style>
+body {
+background-color: #f5f0e1;
+max-width: 200em;
+margin: 0 auto;
+padding: 2em;
+line-height: 1.6;
+color: #333;
+}
+pre, code {
+background-color: white;
+border: 2px ridge #ccc;
+}
+pre {
+padding: 1em;
+overflow-x: auto;
+}
+code {
+padding: 0.2em 0.4em;
+}
+table {
+border-collapse: collapse;
+margin: 1em 0;
+}
+th, td {
+border: 1px solid #ccc;
+padding: 0.5em 1em;
+}
+th {
+background-color: #ebe6d7;
+}
+h1, h2, h3 {
+color: #5c4a32;
+}
+a {
+color: #8b6914;
+}
+a:hover {
+color: #5c4a32;
+}
+img {
+max-width: 100%;
+height: auto;
+}
+</style>
+</head>
+<body>
+<div id="content" class="content">
+
+<div id="org6f4db0d" class="figure">
+<p><img src="images/title.png" alt="Binder - Manuscript Binding Tool" />
+</p>
+</div>
+
+
+<p>
+Binder is free, open source software for power writers composing long form works in plain text.
+While binder is designed for fiction writers, it can be used as a general purpose tool for any piece of writing with multiple chapters or sections.
+Optimized for simplicity, with full support for compilation into standard manuscription format, scene breaks, and a variety of customizable heading structures, binder is a powerful tool for managing a complicated work of literature down to the finest detail.
+</p>
+
+<div id="table-of-contents" role="doc-toc">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents" role="doc-toc">
+<ul>
+<li><a href="#orge07ab6a">Quick Start</a></li>
+<li><a href="#orgbaaf0aa">Configuration</a>
+<ul>
+<li><a href="#org351fe98">Config File</a></li>
+<li><a href="#orgdf04b34">Command Line Options</a></li>
+</ul>
+</li>
+<li><a href="#org20d1714">Title Page</a></li>
+<li><a href="#orgfbb445c">Page Header</a></li>
+<li><a href="#org72bd914">Heading Styles</a></li>
+<li><a href="#orgd6ea60e">Examples</a></li>
+<li><a href="#org9def3e5">Folder Structure</a></li>
+<li><a href="#org9c77df7">Chapter File Format</a>
+<ul>
+<li><a href="#org117a993">Naming Convention</a></li>
+<li><a href="#org0feadaf">Content Format</a></li>
+</ul>
+</li>
+<li><a href="#org60c864a">Output Format</a></li>
+</ul>
+</div>
+</div>
+<div id="outline-container-orge07ab6a" class="outline-2">
+<h2 id="orge07ab6a">Quick Start</h2>
+<div class="outline-text-2" id="text-orge07ab6a">
+<ol class="org-ol">
+<li><p>
+Install the tool:
+</p>
+<div class="org-src-container">
+<pre class="src src-bash">pip install -e .
+</pre>
+</div></li>
+
+<li><p>
+Initialize folder structure:
+</p>
+<div class="org-src-container">
+<pre class="src src-bash">binder --init
+</pre>
+</div></li>
+
+<li>Edit <code>binder.toml</code> with your manuscript details</li>
+
+<li>Add chapter files to <code>draft/</code> using the naming format:
+<ul class="org-ul">
+<li><code>1_Chapter_Title.txt</code></li>
+<li><code>2_The_Journey_Begins.txt</code></li>
+<li><code>3_Into_The_Woods.txt</code></li>
+</ul></li>
+
+<li><p>
+Bind chapters into an ODT:
+</p>
+<div class="org-src-container">
+<pre class="src src-bash">binder --bind
+</pre>
+</div></li>
+
+<li>Find your manuscript in <code>trash/</code></li>
+</ol>
+</div>
+</div>
+<div id="outline-container-orgbaaf0aa" class="outline-2">
+<h2 id="orgbaaf0aa">Configuration</h2>
+<div class="outline-text-2" id="text-orgbaaf0aa">
+</div>
+<div id="outline-container-org351fe98" class="outline-3">
+<h3 id="org351fe98">Config File</h3>
+<div class="outline-text-3" id="text-org351fe98">
+<p>
+Running <code>--init</code> creates a <code>binder.toml</code> configuration file. Settings in this
+file are used automatically, but can be overridden by command line arguments.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-toml"><span style="color: #595959;"># </span><span style="color: #595959;">Chapter heading style: "roman", "title", "num", "chapter", or "nil"
+</span><span style="color: #005e8b;">heading</span> = <span style="color: #3548cf;">"num"</span>
+
+<span style="color: #595959;"># </span><span style="color: #595959;">Author surname for the page header
+</span><span style="color: #005e8b;">author</span> = <span style="color: #3548cf;">"Smith"</span>
+
+<span style="color: #595959;"># </span><span style="color: #595959;">Short title for the page header
+</span><span style="color: #005e8b;">short-title</span> = <span style="color: #3548cf;">"Dark Forest"</span>
+
+<span style="color: #595959;"># </span><span style="color: #595959;">Output filename (optional)
+</span><span style="color: #595959;"># </span><span style="color: #595959;">output = "manuscript.odt"
+</span>
+<span style="color: #595959;"># </span><span style="color: #595959;">--- Title Page Options ---
+</span>
+<span style="color: #595959;"># </span><span style="color: #595959;">Enable or disable the title page
+</span><span style="color: #005e8b;">title-page</span> = <span style="color: #531ab6;">true</span>
+
+<span style="color: #595959;"># </span><span style="color: #595959;">Full manuscript title (centered on title page)
+</span><span style="color: #005e8b;">title</span> = <span style="color: #3548cf;">"The Dark Forest"</span>
+
+<span style="color: #595959;"># </span><span style="color: #595959;">Author's full name (below title)
+</span><span style="color: #005e8b;">author-name</span> = <span style="color: #3548cf;">"John Smith"</span>
+
+<span style="color: #595959;"># </span><span style="color: #595959;">Author's contact info (top left of title page)
+</span><span style="color: #005e8b;">author-address</span> = <span style="color: #3548cf;">"""
+John Smith
+123 Main Street
+City, State 12345
+email@example.com
+"""</span>
+</pre>
+</div>
+
+<p>
+Config files are searched in this order:
+</p>
+<ol class="org-ol">
+<li>Current working directory</li>
+<li>Project path (<code>-p</code> directory)</li>
+<li><code>~/.config/binder.toml</code></li>
+</ol>
+</div>
+</div>
+<div id="outline-container-orgdf04b34" class="outline-3">
+<h3 id="orgdf04b34">Command Line Options</h3>
+<div class="outline-text-3" id="text-orgdf04b34">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Option</th>
+<th scope="col" class="org-left">Short</th>
+<th scope="col" class="org-left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>--init</code></td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">Create draft/, trash/, and binder.toml</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--bind</code></td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">Bind chapter files into ODT</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--output</code></td>
+<td class="org-left"><code>-o</code></td>
+<td class="org-left">Specify output filename</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--path</code></td>
+<td class="org-left"><code>-p</code></td>
+<td class="org-left">Base path for project (default: current)</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--heading</code></td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">Chapter heading style (see below)</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--author</code></td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">Author surname for page header</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--short-title</code></td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">Short title for page header</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--config</code></td>
+<td class="org-left"><code>-c</code></td>
+<td class="org-left">Path to config file</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--no-config</code></td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">Ignore config file</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--title</code></td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">Full manuscript title for title page</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--author-name</code></td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">Author&rsquo;s full name for title page</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--author-address</code></td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">Author&rsquo;s contact address for title page</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--no-title-page</code></td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">Disable the title page</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="outline-container-org20d1714" class="outline-2">
+<h2 id="org20d1714">Title Page</h2>
+<div class="outline-text-2" id="text-org20d1714">
+<p>
+When enabled (default), the title page includes:
+</p>
+
+<ul class="org-ul">
+<li><b>Top left</b>: Author&rsquo;s contact address</li>
+<li><b>Center</b>: Manuscript title (uppercase) and author name</li>
+<li><b>Bottom center</b>: Word count rounded to nearest hundred</li>
+</ul>
+
+<pre class="example" id="org54088aa">
+John Smith
+123 Main Street
+City, State 12345
+email@example.com
+
+
+
+                         THE DARK FOREST
+
+                          by John Smith
+
+
+
+                       about 45,000 words
+</pre>
+
+<p>
+The title page has no header. Headers begin on the first chapter page.
+</p>
+
+<p>
+Disable the title page with <code>--no-title-page</code> or <code>title-page = false</code> in config.
+</p>
+</div>
+</div>
+<div id="outline-container-orgfbb445c" class="outline-2">
+<h2 id="orgfbb445c">Page Header</h2>
+<div class="outline-text-2" id="text-orgfbb445c">
+<p>
+When <code>author</code> and/or <code>short-title</code> are provided, a right-aligned header
+appears on each page (except the title page):
+</p>
+
+<pre class="example" id="org3dd9ed2">
+Smith / DARK FOREST / 1
+</pre>
+
+<p>
+The header displays: <code>Author / SHORT TITLE / Page Number</code>
+</p>
+</div>
+</div>
+<div id="outline-container-org72bd914" class="outline-2">
+<h2 id="org72bd914">Heading Styles</h2>
+<div class="outline-text-2" id="text-org72bd914">
+<p>
+Use <code>--heading</code> to control how chapter headings appear:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Style</th>
+<th scope="col" class="org-left">Example Output</th>
+<th scope="col" class="org-left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>num</code></td>
+<td class="org-left">1, 2, 3</td>
+<td class="org-left">Just the number (default)</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>roman</code></td>
+<td class="org-left">I, II, III</td>
+<td class="org-left">Roman numerals</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>title</code></td>
+<td class="org-left">THE DARK FOREST</td>
+<td class="org-left">File title in ALL CAPS</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>chapter</code></td>
+<td class="org-left">Chapter 1</td>
+<td class="org-left">&ldquo;Chapter&rdquo; followed by number</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>nil</code></td>
+<td class="org-left">(blank)</td>
+<td class="org-left">No heading, preserves spacing</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div id="outline-container-orgd6ea60e" class="outline-2">
+<h2 id="orgd6ea60e">Examples</h2>
+<div class="outline-text-2" id="text-orgd6ea60e">
+<div class="org-src-container">
+<pre class="src src-bash"><span style="color: #595959;"># </span><span style="color: #595959;">Initialize and bind in one command
+</span>binder --init --bind
+
+<span style="color: #595959;"># </span><span style="color: #595959;">Bind with roman numeral headings
+</span>binder --bind --heading roman
+
+<span style="color: #595959;"># </span><span style="color: #595959;">Bind with custom output name
+</span>binder --bind -o my_novel.odt
+
+<span style="color: #595959;"># </span><span style="color: #595959;">Bind with page header (Author / Title / Page)
+</span>binder --bind --author <span style="color: #3548cf;">"Smith"</span> --short-title <span style="color: #3548cf;">"Dark Forest"</span>
+
+<span style="color: #595959;"># </span><span style="color: #595959;">Bind with title page
+</span>binder --bind --title <span style="color: #3548cf;">"The Dark Forest"</span> --author-name <span style="color: #3548cf;">"John Smith"</span>
+
+<span style="color: #595959;"># </span><span style="color: #595959;">Use a specific config file
+</span>binder --bind -c ~/my-config.toml
+
+<span style="color: #595959;"># </span><span style="color: #595959;">Ignore config file, use only CLI args
+</span>binder --bind --no-config --author <span style="color: #3548cf;">"Smith"</span>
+
+<span style="color: #595959;"># </span><span style="color: #595959;">Work with a different project directory
+</span>binder --init --bind -p ~/projects/my-book
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-org9def3e5" class="outline-2">
+<h2 id="org9def3e5">Folder Structure</h2>
+<div class="outline-text-2" id="text-org9def3e5">
+<p>
+After running <code>--init</code>:
+</p>
+
+<pre class="example" id="org3af355d">
+project/
+├── binder.toml   &lt;- Configuration file
+├── draft/        &lt;- Put your chapter .txt files here
+└── trash/        &lt;- Output ODT files appear here
+</pre>
+</div>
+</div>
+<div id="outline-container-org9c77df7" class="outline-2">
+<h2 id="org9c77df7">Chapter File Format</h2>
+<div class="outline-text-2" id="text-org9c77df7">
+</div>
+<div id="outline-container-org117a993" class="outline-3">
+<h3 id="org117a993">Naming Convention</h3>
+<div class="outline-text-3" id="text-org117a993">
+<p>
+Files must match the pattern: <code>N_Title.txt</code>
+</p>
+
+<ul class="org-ul">
+<li><code>N</code> is the chapter number (determines order)</li>
+<li><code>Title</code> uses underscores for spaces</li>
+<li>Extension must be <code>.txt</code></li>
+</ul>
+
+<p>
+Examples:
+</p>
+<ul class="org-ul">
+<li><code>1_The_Beginning.txt</code></li>
+<li><code>2_Rising_Action.txt</code></li>
+<li><code>10_The_Climax.txt</code></li>
+</ul>
+</div>
+</div>
+<div id="outline-container-org0feadaf" class="outline-3">
+<h3 id="org0feadaf">Content Format</h3>
+<div class="outline-text-3" id="text-org0feadaf">
+<ul class="org-ul">
+<li>Paragraphs are separated by blank lines</li>
+<li>Single newlines within a paragraph are joined with spaces</li>
+<li>Scene breaks: <code>#</code>, <code>###</code>, <code>***</code>, <code>* * *</code>, or <code>---</code></li>
+<li>Emphasis: <code>_text_</code> renders as underlined text</li>
+</ul>
+
+<p>
+Example content:
+</p>
+<pre class="example" id="orgca68d5b">
+The rain fell steadily on the old tin roof. Maria sat by the window,
+watching the droplets race each other down the glass.
+
+She had been waiting for _three hours_.
+
+###
+
+The door finally opened. A man stepped through, shaking water from
+his coat. "I'm _so_ sorry," he said.
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-org60c864a" class="outline-2">
+<h2 id="org60c864a">Output Format</h2>
+<div class="outline-text-2" id="text-org60c864a">
+<p>
+The generated ODT uses standard manuscript format:
+</p>
+
+<ul class="org-ul">
+<li>1 inch margins on all sides</li>
+<li>Courier New, 12pt</li>
+<li>Double-spaced lines</li>
+<li>0.5 inch first-line indent (except after headings/scene breaks)</li>
+<li>Centered chapter headings (positioned 1/3 down page)</li>
+<li>Page break before each chapter (except first)</li>
+<li>No widow/orphan control</li>
+<li>Optional title page (no header)</li>
+<li>Optional page header with author/title/page number</li>
+</ul>
+</div>
+</div>
+</div>
+</body>
+</html>

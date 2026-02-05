@@ -1,0 +1,33 @@
+#+TITLE: Binder
+
+A formatting assistant for writing novels in plain text.
+Binds chapter drafts into an ODT file with standard manuscript formatting.
+Text editor agnostic; use whatever you like!
+Works in your command line.
+
+* Quick Start
+
+
+#+begin_src bash
+pip install -e .
+binder --init
+# Add chapter files to draft/ (e.g., 1_Chapter_One.txt)
+binder --bind
+#+end_src
+
+* Features
+
+- Standard manuscript format (Courier 12pt, double-spaced, 1" margins)
+- Title page with contact info, title, author, and word count
+- Page headers (Author / Title / Page)
+- Chapter headings (numeric, roman numerals, or title)
+- Scene breaks and emphasis markup
+- TOML configuration file support
+
+* Documentation
+
+Full documentation available at [docs/index.html](docs/index.html) or [docs/index.org](docs/index.org).
+
+* License
+
+MIT

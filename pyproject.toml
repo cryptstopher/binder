@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=64.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "binder"
+version = "0.1.0"
+description = "Bind chapter drafts into a manuscript ODT file with standard formatting"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = [
+    "tomli>=2.0; python_version < '3.11'",
+]
+
+[project.scripts]
+binder = "binder:main"
+
+[tool.setuptools]
+py-modules = ["binder"]

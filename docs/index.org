@@ -1,0 +1,308 @@
+#+TITLE: Binder - Manuscript Binding Tool
+#+AUTHOR:
+#+OPTIONS: toc:nil num:nil title:nil
+
+#+HTML_HEAD: <style>
+#+HTML_HEAD:   body {
+#+HTML_HEAD:     background-color: #f5f0e1;
+#+HTML_HEAD:     max-width: 200em;
+#+HTML_HEAD:     margin: 0 auto;
+#+HTML_HEAD:     padding: 2em;
+#+HTML_HEAD:     line-height: 1.6;
+#+HTML_HEAD:     color: #333;
+#+HTML_HEAD:   }
+#+HTML_HEAD:   pre, code {
+#+HTML_HEAD:     background-color: white;
+#+HTML_HEAD:     border: 2px ridge #ccc;
+#+HTML_HEAD:   }
+#+HTML_HEAD:   pre {
+#+HTML_HEAD:     padding: 1em;
+#+HTML_HEAD:     overflow-x: auto;
+#+HTML_HEAD:   }
+#+HTML_HEAD:   code {
+#+HTML_HEAD:     padding: 0.2em 0.4em;
+#+HTML_HEAD:   }
+#+HTML_HEAD:   table {
+#+HTML_HEAD:     border-collapse: collapse;
+#+HTML_HEAD:     margin: 1em 0;
+#+HTML_HEAD:   }
+#+HTML_HEAD:   th, td {
+#+HTML_HEAD:     border: 1px solid #ccc;
+#+HTML_HEAD:     padding: 0.5em 1em;
+#+HTML_HEAD:   }
+#+HTML_HEAD:   th {
+#+HTML_HEAD:     background-color: #ebe6d7;
+#+HTML_HEAD:   }
+#+HTML_HEAD:   h1, h2, h3 {
+#+HTML_HEAD:     color: #5c4a32;
+#+HTML_HEAD:   }
+#+HTML_HEAD:   a {
+#+HTML_HEAD:     color: #8b6914;
+#+HTML_HEAD:   }
+#+HTML_HEAD:   a:hover {
+#+HTML_HEAD:     color: #5c4a32;
+#+HTML_HEAD:   }
+#+HTML_HEAD:   img {
+#+HTML_HEAD:     max-width: 100%;
+#+HTML_HEAD:     height: auto;
+#+HTML_HEAD:   }
+#+HTML_HEAD: </style>
+
+#+ATTR_HTML: :alt Binder - Manuscript Binding Tool
+[[file:images/title.png]]
+
+
+Binder is free, open source software for power writers composing long form works in plain text.
+
+Stay organized with a clean, elegant directory structure, so you can:
+
+1. Write.
+2. Finish what you write.
+3. Send what you write to editors, publishers, and/or agencies.
+
+While binder is designed for fiction writers, it can be used as a general purpose tool for any piece of writing with multiple chapters or sections.
+Optimized for simplicity, with full support for compilation into standard manuscription format, scene breaks, and a variety of customizable heading structures, binder is a powerful tool for managing a complicated work of literature down to the finest detail.
+
+#+toc: headlines 2 
+
+* Quick Start
+
+1. Install the tool:
+   #+begin_src bash
+   pip install -e .
+   #+end_src
+
+2. Initialize folder structure:
+   #+begin_src bash
+   binder --init
+   #+end_src
+
+3. Edit =binder.toml= with your manuscript details
+
+4. Add chapter files to =draft/= using the naming format:
+   - =1_Chapter_Title.txt=
+   - =2_The_Journey_Begins.txt=
+   - =3_Into_The_Woods.txt=
+
+5. Bind chapters into an ODT:
+   #+begin_src bash
+   binder --bind
+   #+end_src
+
+6. Find your manuscript in =trash/=
+
+* Configuration
+
+All of the customizable options are available via command line, but you may find it easier to use a configuration file.
+
+** Config File
+
+Running =--init= creates a =binder.toml= configuration file.
+Settings in this file are used automatically, but can be overridden by command line arguments.
+
+#+begin_src toml
+# Chapter heading style: "roman", "title", "num", "chapter", or "nil"
+heading = "num"
+
+# Author surname for the page header
+author = "Smith"
+
+# Short title for the page header
+short-title = "Dark Forest"
+
+# Output filename (optional)
+# output = "manuscript.odt"
+
+# --- Title Page Options ---
+
+# Enable or disable the title page
+title-page = true
+
+# Full manuscript title (centered on title page)
+title = "The Dark Forest"
+
+# Author's full name (below title)
+author-name = "John Smith"
+
+# Author's contact info (top left of title page)
+author-address = """
+John Smith
+123 Main Street
+City, State 12345
+email@example.com
+"""
+#+end_src
+
+Config files are searched in this order:
+
+1. Current working directory
+2. Project path (=-p= directory)
+3. =~/.config/binder.toml=
+
+** Command Line Options
+
+| Option             | Short | Description                                |
+|--------------------+-------+--------------------------------------------|
+| =--init=           |       | Create draft/, trash/, and binder.toml     |
+| =--bind=           |       | Bind chapter files into ODT                |
+| =--output=         | =-o=  | Specify output filename                    |
+| =--path=           | =-p=  | Base path for project (default: current)   |
+| =--heading=        |       | Chapter heading style (see below)          |
+| =--author=         |       | Author surname for page header             |
+| =--short-title=    |       | Short title for page header                |
+| =--config=         | =-c=  | Path to config file                        |
+| =--no-config=      |       | Ignore config file                         |
+| =--title=          |       | Full manuscript title for title page       |
+| =--author-name=    |       | Author's full name for title page          |
+| =--author-address= |       | Author's contact address for title page    |
+| =--no-title-page=  |       | Disable the title page                     |
+
+* Title Page
+
+When enabled (default), the title page includes:
+
+- *Top left*: Author's contact address
+- *Center*: Manuscript title (uppercase) and author name
+- *Bottom center*: Word count rounded to nearest hundred
+
+#+begin_example
+John Smith
+123 Main Street
+City, State 12345
+email@example.com
+
+
+
+                         THE DARK FOREST
+
+                          by John Smith
+
+
+
+                       about 45,000 words
+#+end_example
+
+The title page has no header.
+Headers begin on the first chapter page.
+
+Disable the title page with =--no-title-page= or =title-page = false= in config.
+
+* Page Header
+
+When =author= and/or =short-title= are provided, a right-aligned header appears on each page (except the title page):
+
+#+begin_example
+                                          Smith / DARK FOREST / 1
+#+end_example
+
+
+* Heading Styles
+
+Use =--heading= to control how chapter headings appear:
+
+| Style     | Example Output     | Description                    |
+|-----------+--------------------+--------------------------------|
+| =num=     | 1, 2, 3            | Just the number (default)      |
+| =roman=   | I, II, III         | Roman numerals                 |
+| =title=   | THE DARK FOREST    | File title in ALL CAPS         |
+| =chapter= | Chapter 1          | "Chapter" followed by number   |
+| =nil=     | (blank)            | No heading, preserves spacing  |
+
+* Example command line operations
+
+#+begin_src bash
+# Initialize and bind in one command
+binder --init --bind
+
+# Bind with roman numeral headings
+binder --bind --heading roman
+
+# Bind with custom output name
+binder --bind -o my_novel.odt
+
+# Bind with page header (Author / Title / Page)
+binder --bind --author "Smith" --short-title "Dark Forest"
+
+# Bind with title page
+binder --bind --title "The Dark Forest" --author-name "John Smith"
+
+# Use a specific config file
+binder --bind -c ~/my-config.toml
+
+# Ignore config file, use only CLI args
+binder --bind --no-config --author "Smith"
+
+# Work with a different project directory
+binder --init --bind -p ~/projects/my-book
+#+end_src
+
+* Folder Structure
+
+You will start your next project by simply creating a new directory somewhere in your file system.
+
+Then run:
+
+#+begin_src bash
+binder --init
+#+end_src
+
+After running =--init= you will get all this:
+
+#+begin_example
+project/
+├── binder.toml   <- Configuration file
+├── draft/        <- Put your chapter .txt files here
+└── trash/        <- Output ODT files appear here
+#+end_example
+
+The use of "trash" as the folder title is ironic, because most manuscripts end up in the trash, but also because the manuscript files are just byproducts of what is present in the ~.txt~ chapter files.
+So the purpose of the "trash" directory is simply to keep the ODT files separate from the all-important draft files.
+
+* Chapter File Format
+
+** Naming Convention
+
+Files must match the pattern: =N_Title.txt=
+
+- =N= is the chapter number (determines order)
+- =Title= uses underscores for spaces
+- Extension must be =.txt=
+
+Examples:
+- =1_The_Beginning.txt=
+- =2_Rising_Action.txt=
+- =10_The_Climax.txt=
+
+** Content Format
+
+- Paragraphs are separated by blank lines
+- Single newlines within a paragraph are joined with spaces
+- Scene breaks: =#=, =###=, =***=, =* * *=, or =---=
+- Emphasis: =_text_= renders as underlined text
+
+Example content:
+#+begin_example
+The rain fell steadily on the old tin roof. Maria sat by the window,
+watching the droplets race each other down the glass.
+
+She had been waiting for _three hours_.
+
+###
+
+The door finally opened. A man stepped through, shaking water from
+his coat. "I'm _so_ sorry," he said.
+#+end_example
+
+* Output Format
+
+The generated ODT adheres to standard manuscript format as follows:
+
+- 1 inch margins on all sides
+- Courier New, 12pt
+- Double-spaced lines
+- 0.5 inch first-line indent (except after headings/scene breaks)
+- Centered chapter headings (positioned halfway down page)
+- Page break before each chapter (except first)
+- No widow/orphan control
+- Optional title page (no header)
+- Optional page header with author/title/page number
