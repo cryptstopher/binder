@@ -26,7 +26,7 @@ binder --bind
 
 * Documentation
 
-Full documentation available at [docs/index.html](docs/index.html) or [docs/index.org](docs/index.org).
+Full documentation available [here](https://cryptstopher.github.io/binder/).
 
 * License
 
