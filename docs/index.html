@@ -3,7 +3,7 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2026-02-05 Thu 11:59 -->
+<!-- 2026-02-14 Sat 10:36 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Binder - Manuscript Binding Tool</title>
@@ -241,47 +241,67 @@ height: auto;
 <body>
 <div id="content" class="content">
 
-<div id="org6f4db0d" class="figure">
+<div id="org7489c81" class="figure">
 <p><img src="images/title.png" alt="Binder - Manuscript Binding Tool" />
 </p>
 </div>
 
 
 <p>
-Binder is free, open source software for power writers composing long form works in plain text.
+Binder is free, open source software for power writers composing long form or short form works in plain text.
+</p>
+
+<p>
+Stay organized with a clean, elegant directory structure, so you can:
+</p>
+
+<ol class="org-ol">
+<li>Write.</li>
+<li>Finish what you write.</li>
+<li>Send what you write to editors, publishers, and/or agencies.</li>
+</ol>
+
+<p>
 While binder is designed for fiction writers, it can be used as a general purpose tool for any piece of writing with multiple chapters or sections.
-Optimized for simplicity, with full support for compilation into standard manuscription format, scene breaks, and a variety of customizable heading structures, binder is a powerful tool for managing a complicated work of literature down to the finest detail.
+Optimized for simplicity, with full support for compilation into standard manuscript format, scene breaks, and a variety of customizable heading structures, binder is a powerful tool for managing a complicated work of literature down to the finest detail.
 </p>
 
 <div id="table-of-contents" role="doc-toc">
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents" role="doc-toc">
 <ul>
-<li><a href="#orge07ab6a">Quick Start</a></li>
-<li><a href="#orgbaaf0aa">Configuration</a>
+<li><a href="#org14d3757">Quick Start</a></li>
+<li><a href="#org7abead1">Configuration</a>
 <ul>
-<li><a href="#org351fe98">Config File</a></li>
-<li><a href="#orgdf04b34">Command Line Options</a></li>
+<li><a href="#org85e673b">Config File</a></li>
+<li><a href="#orgf1b5d4e">Command Line Options</a></li>
 </ul>
 </li>
-<li><a href="#org20d1714">Title Page</a></li>
-<li><a href="#orgfbb445c">Page Header</a></li>
-<li><a href="#org72bd914">Heading Styles</a></li>
-<li><a href="#orgd6ea60e">Examples</a></li>
-<li><a href="#org9def3e5">Folder Structure</a></li>
-<li><a href="#org9c77df7">Chapter File Format</a>
+<li><a href="#org4840c4e">Title Page</a></li>
+<li><a href="#orgb73086b">Binding Styles</a>
 <ul>
-<li><a href="#org117a993">Naming Convention</a></li>
-<li><a href="#org0feadaf">Content Format</a></li>
+<li><a href="#orgba992cd">Novel (default)</a></li>
+<li><a href="#orgb024502">Short Story</a></li>
 </ul>
 </li>
-<li><a href="#org60c864a">Output Format</a></li>
+<li><a href="#orgfb3dcf6">Page Header</a></li>
+<li><a href="#org6d391a6">Heading Styles</a></li>
+<li><a href="#org38f92d6">Manuscript Statistics</a></li>
+<li><a href="#orge211363">Example command line operations</a></li>
+<li><a href="#org23502a2">Folder Structure</a></li>
+<li><a href="#orge35ed9e">Chapter File Format</a>
+<ul>
+<li><a href="#org3e4dd6d">Naming Convention</a></li>
+<li><a href="#orgdfdf6fc">Content Format</a></li>
+</ul>
+</li>
+<li><a href="#org792bd8e">Output Format</a></li>
 </ul>
 </div>
 </div>
-<div id="outline-container-orge07ab6a" class="outline-2">
-<h2 id="orge07ab6a">Quick Start</h2>
-<div class="outline-text-2" id="text-orge07ab6a">
+<div id="outline-container-org14d3757" class="outline-2">
+<h2 id="org14d3757">Quick Start</h2>
+<div class="outline-text-2" id="text-org14d3757">
 <ol class="org-ol">
 <li><p>
 Install the tool:
@@ -320,44 +340,50 @@ Bind chapters into an ODT:
 </ol>
 </div>
 </div>
-<div id="outline-container-orgbaaf0aa" class="outline-2">
-<h2 id="orgbaaf0aa">Configuration</h2>
-<div class="outline-text-2" id="text-orgbaaf0aa">
-</div>
-<div id="outline-container-org351fe98" class="outline-3">
-<h3 id="org351fe98">Config File</h3>
-<div class="outline-text-3" id="text-org351fe98">
+<div id="outline-container-org7abead1" class="outline-2">
+<h2 id="org7abead1">Configuration</h2>
+<div class="outline-text-2" id="text-org7abead1">
 <p>
-Running <code>--init</code> creates a <code>binder.toml</code> configuration file. Settings in this
-file are used automatically, but can be overridden by command line arguments.
+All of the customizable options are available via command line, but you may find it easier to use a configuration file.
+</p>
+</div>
+<div id="outline-container-org85e673b" class="outline-3">
+<h3 id="org85e673b">Config File</h3>
+<div class="outline-text-3" id="text-org85e673b">
+<p>
+Running <code>--init</code> creates a <code>binder.toml</code> configuration file.
+Settings in this file are used automatically, but can be overridden by command line arguments.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-toml"><span style="color: #595959;"># </span><span style="color: #595959;">Chapter heading style: "roman", "title", "num", "chapter", or "nil"
-</span><span style="color: #005e8b;">heading</span> = <span style="color: #3548cf;">"num"</span>
+<pre class="src src-toml"><span style="color: #606873;"># </span><span style="color: #606873;">Binding style: "novel" or "short-story"
+</span><span style="color: #C264C6;">binding</span> = <span style="color: #67bfba; background-color: #26303d;">"novel"</span>
 
-<span style="color: #595959;"># </span><span style="color: #595959;">Author surname for the page header
-</span><span style="color: #005e8b;">author</span> = <span style="color: #3548cf;">"Smith"</span>
+<span style="color: #606873;"># </span><span style="color: #606873;">Chapter heading style: "roman", "title", "num", "chapter", or "nil"
+</span><span style="color: #C264C6;">heading</span> = <span style="color: #67bfba; background-color: #26303d;">"num"</span>
 
-<span style="color: #595959;"># </span><span style="color: #595959;">Short title for the page header
-</span><span style="color: #005e8b;">short-title</span> = <span style="color: #3548cf;">"Dark Forest"</span>
+<span style="color: #606873;"># </span><span style="color: #606873;">Author surname for the page header
+</span><span style="color: #C264C6;">author</span> = <span style="color: #67bfba; background-color: #26303d;">"Smith"</span>
 
-<span style="color: #595959;"># </span><span style="color: #595959;">Output filename (optional)
-</span><span style="color: #595959;"># </span><span style="color: #595959;">output = "manuscript.odt"
+<span style="color: #606873;"># </span><span style="color: #606873;">Short title for the page header
+</span><span style="color: #C264C6;">short-title</span> = <span style="color: #67bfba; background-color: #26303d;">"Dark Forest"</span>
+
+<span style="color: #606873;"># </span><span style="color: #606873;">Output filename (optional)
+</span><span style="color: #606873;"># </span><span style="color: #606873;">output = "manuscript.odt"
 </span>
-<span style="color: #595959;"># </span><span style="color: #595959;">--- Title Page Options ---
+<span style="color: #606873;"># </span><span style="color: #606873;">--- Title Page Options ---
 </span>
-<span style="color: #595959;"># </span><span style="color: #595959;">Enable or disable the title page
-</span><span style="color: #005e8b;">title-page</span> = <span style="color: #531ab6;">true</span>
+<span style="color: #606873;"># </span><span style="color: #606873;">Enable or disable the title page
+</span><span style="color: #C264C6;">title-page</span> = <span style="color: #83CB55;">true</span>
 
-<span style="color: #595959;"># </span><span style="color: #595959;">Full manuscript title (centered on title page)
-</span><span style="color: #005e8b;">title</span> = <span style="color: #3548cf;">"The Dark Forest"</span>
+<span style="color: #606873;"># </span><span style="color: #606873;">Full manuscript title (centered on title page)
+</span><span style="color: #C264C6;">title</span> = <span style="color: #67bfba; background-color: #26303d;">"The Dark Forest"</span>
 
-<span style="color: #595959;"># </span><span style="color: #595959;">Author's full name (below title)
-</span><span style="color: #005e8b;">author-name</span> = <span style="color: #3548cf;">"John Smith"</span>
+<span style="color: #606873;"># </span><span style="color: #606873;">Author's full name (below title)
+</span><span style="color: #C264C6;">author-name</span> = <span style="color: #67bfba; background-color: #26303d;">"John Smith"</span>
 
-<span style="color: #595959;"># </span><span style="color: #595959;">Author's contact info (top left of title page)
-</span><span style="color: #005e8b;">author-address</span> = <span style="color: #3548cf;">"""
+<span style="color: #606873;"># </span><span style="color: #606873;">Author's contact info (top left of title page)
+</span><span style="color: #C264C6;">author-address</span> = <span style="color: #67bfba; background-color: #26303d;">"""
 John Smith
 123 Main Street
 City, State 12345
@@ -369,6 +395,7 @@ email@example.com
 <p>
 Config files are searched in this order:
 </p>
+
 <ol class="org-ol">
 <li>Current working directory</li>
 <li>Project path (<code>-p</code> directory)</li>
@@ -376,9 +403,9 @@ Config files are searched in this order:
 </ol>
 </div>
 </div>
-<div id="outline-container-orgdf04b34" class="outline-3">
-<h3 id="orgdf04b34">Command Line Options</h3>
-<div class="outline-text-3" id="text-orgdf04b34">
+<div id="outline-container-orgf1b5d4e" class="outline-3">
+<h3 id="orgf1b5d4e">Command Line Options</h3>
+<div class="outline-text-3" id="text-orgf1b5d4e">
 <table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
 
 
@@ -428,6 +455,12 @@ Config files are searched in this order:
 </tr>
 
 <tr>
+<td class="org-left"><code>--binding</code></td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">Binding style: <code>novel</code> or <code>short-story</code></td>
+</tr>
+
+<tr>
 <td class="org-left"><code>--author</code></td>
 <td class="org-left">&#xa0;</td>
 <td class="org-left">Author surname for page header</td>
@@ -474,14 +507,20 @@ Config files are searched in this order:
 <td class="org-left">&#xa0;</td>
 <td class="org-left">Disable the title page</td>
 </tr>
+
+<tr>
+<td class="org-left"><code>--stats</code></td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">Show manuscript statistics and readability</td>
+</tr>
 </tbody>
 </table>
 </div>
 </div>
 </div>
-<div id="outline-container-org20d1714" class="outline-2">
-<h2 id="org20d1714">Title Page</h2>
-<div class="outline-text-2" id="text-org20d1714">
+<div id="outline-container-org4840c4e" class="outline-2">
+<h2 id="org4840c4e">Title Page</h2>
+<div class="outline-text-2" id="text-org4840c4e">
 <p>
 When enabled (default), the title page includes:
 </p>
@@ -492,7 +531,7 @@ When enabled (default), the title page includes:
 <li><b>Bottom center</b>: Word count rounded to nearest hundred</li>
 </ul>
 
-<pre class="example" id="org54088aa">
+<pre class="example" id="org2e9d61f">
 John Smith
 123 Main Street
 City, State 12345
@@ -510,7 +549,8 @@ email@example.com
 </pre>
 
 <p>
-The title page has no header. Headers begin on the first chapter page.
+The title page has no header.
+Headers begin on the first chapter page.
 </p>
 
 <p>
@@ -518,26 +558,80 @@ Disable the title page with <code>--no-title-page</code> or <code>title-page = f
 </p>
 </div>
 </div>
-<div id="outline-container-orgfbb445c" class="outline-2">
-<h2 id="orgfbb445c">Page Header</h2>
-<div class="outline-text-2" id="text-orgfbb445c">
+<div id="outline-container-orgb73086b" class="outline-2">
+<h2 id="orgb73086b">Binding Styles</h2>
+<div class="outline-text-2" id="text-orgb73086b">
 <p>
-When <code>author</code> and/or <code>short-title</code> are provided, a right-aligned header
-appears on each page (except the title page):
+Use <code>--binding</code> to choose between novel and short story formatting.
+</p>
+</div>
+<div id="outline-container-orgba992cd" class="outline-3">
+<h3 id="orgba992cd">Novel (default)</h3>
+<div class="outline-text-3" id="text-orgba992cd">
+<p>
+Each file becomes a chapter on its own page with a centered heading.
+The title page is a separate page with word count centered at the bottom.
 </p>
 
-<pre class="example" id="org3dd9ed2">
-Smith / DARK FOREST / 1
+<div class="org-src-container">
+<pre class="src src-bash">binder --bind --binding novel
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-orgb024502" class="outline-3">
+<h3 id="orgb024502">Short Story</h3>
+<div class="outline-text-3" id="text-orgb024502">
+<p>
+Files are joined as a continuous story separated by <code>#</code> scene breaks instead of chapter headings.
+The title page is compact: the word count appears top-right on the same line as the first address line, and the story text begins on the title page directly after the byline (no page break).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-bash">binder --bind --binding short-story
+</pre>
+</div>
+
+<pre class="example" id="org9f021b0">
+John Smith                                        about 5,000 words
+123 Main Street
+City, State 12345
+email@example.com
+
+
+
+                         THE DARK FOREST
+
+                          by John Smith
+
+     The rain fell steadily on the old tin roof. Maria sat
+by the window, watching the droplets race each other down
+the glass...
 </pre>
 
 <p>
-The header displays: <code>Author / SHORT TITLE / Page Number</code>
+Also note that short story formatting uses different font, Times New Roman instead of Courier New.
+This is standard practice.
+Likewise, the emphasis used in the final output will be <i>italics</i> instead of <span class="underline">underlines</span>.
 </p>
 </div>
 </div>
-<div id="outline-container-org72bd914" class="outline-2">
-<h2 id="org72bd914">Heading Styles</h2>
-<div class="outline-text-2" id="text-org72bd914">
+</div>
+<div id="outline-container-orgfb3dcf6" class="outline-2">
+<h2 id="orgfb3dcf6">Page Header</h2>
+<div class="outline-text-2" id="text-orgfb3dcf6">
+<p>
+When <code>author</code> and/or <code>short-title</code> are provided, a right-aligned header appears on each page (except the title page):
+</p>
+
+<pre class="example" id="org454ec16">
+Smith / DARK FOREST / 1
+</pre>
+</div>
+</div>
+<div id="outline-container-org6d391a6" class="outline-2">
+<h2 id="org6d391a6">Heading Styles</h2>
+<div class="outline-text-2" id="text-org6d391a6">
 <p>
 Use <code>--heading</code> to control how chapter headings appear:
 </p>
@@ -593,59 +687,175 @@ Use <code>--heading</code> to control how chapter headings appear:
 </table>
 </div>
 </div>
-<div id="outline-container-orgd6ea60e" class="outline-2">
-<h2 id="orgd6ea60e">Examples</h2>
-<div class="outline-text-2" id="text-orgd6ea60e">
+<div id="outline-container-org38f92d6" class="outline-2">
+<h2 id="org38f92d6">Manuscript Statistics</h2>
+<div class="outline-text-2" id="text-org38f92d6">
+<p>
+Use <code>--stats</code> to print a readability report for your manuscript:
+</p>
+
 <div class="org-src-container">
-<pre class="src src-bash"><span style="color: #595959;"># </span><span style="color: #595959;">Initialize and bind in one command
+<pre class="src src-bash">binder --stats
+</pre>
+</div>
+
+<pre class="example" id="org43ec247">
+Manuscript Statistics
+──────────────────────────────
+  Words:                 45,678
+  Paragraphs:            1,234
+  Sentences:             2,345
+  Words/Paragraph:       37.0
+  Sentences/Paragraph:   1.9
+  Flesch Reading Ease:   65.2 (Standard)
+</pre>
+
+<p>
+The Flesch Reading Ease score is interpreted as follows:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Score</th>
+<th scope="col" class="org-left">Label</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">90–100</td>
+<td class="org-left">Very Easy</td>
+</tr>
+
+<tr>
+<td class="org-left">80–89</td>
+<td class="org-left">Easy</td>
+</tr>
+
+<tr>
+<td class="org-left">70–79</td>
+<td class="org-left">Fairly Easy</td>
+</tr>
+
+<tr>
+<td class="org-left">60–69</td>
+<td class="org-left">Standard</td>
+</tr>
+
+<tr>
+<td class="org-left">50–59</td>
+<td class="org-left">Fairly Difficult</td>
+</tr>
+
+<tr>
+<td class="org-left">30–49</td>
+<td class="org-left">Difficult</td>
+</tr>
+
+<tr>
+<td class="org-left">0–29</td>
+<td class="org-left">Very Confusing</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+You can combine <code>--stats</code> with <code>--bind</code> to see statistics and produce an ODT in a single command:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-bash">binder --stats --bind
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-orge211363" class="outline-2">
+<h2 id="orge211363">Example command line operations</h2>
+<div class="outline-text-2" id="text-orge211363">
+<div class="org-src-container">
+<pre class="src src-bash"><span style="color: #606873;"># </span><span style="color: #606873;">Initialize and bind in one command
 </span>binder --init --bind
 
-<span style="color: #595959;"># </span><span style="color: #595959;">Bind with roman numeral headings
+<span style="color: #606873;"># </span><span style="color: #606873;">Bind with roman numeral headings
 </span>binder --bind --heading roman
 
-<span style="color: #595959;"># </span><span style="color: #595959;">Bind with custom output name
+<span style="color: #606873;"># </span><span style="color: #606873;">Bind with custom output name
 </span>binder --bind -o my_novel.odt
 
-<span style="color: #595959;"># </span><span style="color: #595959;">Bind with page header (Author / Title / Page)
-</span>binder --bind --author <span style="color: #3548cf;">"Smith"</span> --short-title <span style="color: #3548cf;">"Dark Forest"</span>
+<span style="color: #606873;"># </span><span style="color: #606873;">Bind with page header (Author / Title / Page)
+</span>binder --bind --author <span style="color: #67bfba; background-color: #26303d;">"Smith"</span> --short-title <span style="color: #67bfba; background-color: #26303d;">"Dark Forest"</span>
 
-<span style="color: #595959;"># </span><span style="color: #595959;">Bind with title page
-</span>binder --bind --title <span style="color: #3548cf;">"The Dark Forest"</span> --author-name <span style="color: #3548cf;">"John Smith"</span>
+<span style="color: #606873;"># </span><span style="color: #606873;">Bind with title page
+</span>binder --bind --title <span style="color: #67bfba; background-color: #26303d;">"The Dark Forest"</span> --author-name <span style="color: #67bfba; background-color: #26303d;">"John Smith"</span>
 
-<span style="color: #595959;"># </span><span style="color: #595959;">Use a specific config file
+<span style="color: #606873;"># </span><span style="color: #606873;">Bind as a short story
+</span>binder --bind --binding short-story
+
+<span style="color: #606873;"># </span><span style="color: #606873;">Use a specific config file
 </span>binder --bind -c ~/my-config.toml
 
-<span style="color: #595959;"># </span><span style="color: #595959;">Ignore config file, use only CLI args
-</span>binder --bind --no-config --author <span style="color: #3548cf;">"Smith"</span>
+<span style="color: #606873;"># </span><span style="color: #606873;">Ignore config file, use only CLI args
+</span>binder --bind --no-config --author <span style="color: #67bfba; background-color: #26303d;">"Smith"</span>
 
-<span style="color: #595959;"># </span><span style="color: #595959;">Work with a different project directory
+<span style="color: #606873;"># </span><span style="color: #606873;">Show manuscript statistics
+</span>binder --stats
+
+<span style="color: #606873;"># </span><span style="color: #606873;">Show stats and bind in one command
+</span>binder --stats --bind
+
+<span style="color: #606873;"># </span><span style="color: #606873;">Work with a different project directory
 </span>binder --init --bind -p ~/projects/my-book
 </pre>
 </div>
 </div>
 </div>
-<div id="outline-container-org9def3e5" class="outline-2">
-<h2 id="org9def3e5">Folder Structure</h2>
-<div class="outline-text-2" id="text-org9def3e5">
+<div id="outline-container-org23502a2" class="outline-2">
+<h2 id="org23502a2">Folder Structure</h2>
+<div class="outline-text-2" id="text-org23502a2">
 <p>
-After running <code>--init</code>:
+You will start your next project by simply creating a new directory somewhere in your file system.
 </p>
 
-<pre class="example" id="org3af355d">
+<p>
+Then run:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-bash">binder --init
+</pre>
+</div>
+
+<p>
+After running <code>--init</code> you will get all this:
+</p>
+
+<pre class="example" id="org992af83">
 project/
 ├── binder.toml   &lt;- Configuration file
 ├── draft/        &lt;- Put your chapter .txt files here
 └── trash/        &lt;- Output ODT files appear here
 </pre>
+
+<p>
+The use of &ldquo;trash&rdquo; as the folder title is ironic, because most manuscripts end up in the trash, but also because the manuscript files are just byproducts of what is present in the <code>.txt</code> chapter files.
+So the purpose of the &ldquo;trash&rdquo; directory is simply to keep the ODT files separate from the all-important draft files.
+</p>
 </div>
 </div>
-<div id="outline-container-org9c77df7" class="outline-2">
-<h2 id="org9c77df7">Chapter File Format</h2>
-<div class="outline-text-2" id="text-org9c77df7">
+<div id="outline-container-orge35ed9e" class="outline-2">
+<h2 id="orge35ed9e">Chapter File Format</h2>
+<div class="outline-text-2" id="text-orge35ed9e">
 </div>
-<div id="outline-container-org117a993" class="outline-3">
-<h3 id="org117a993">Naming Convention</h3>
-<div class="outline-text-3" id="text-org117a993">
+<div id="outline-container-org3e4dd6d" class="outline-3">
+<h3 id="org3e4dd6d">Naming Convention</h3>
+<div class="outline-text-3" id="text-org3e4dd6d">
 <p>
 Files must match the pattern: <code>N_Title.txt</code>
 </p>
@@ -666,9 +876,9 @@ Examples:
 </ul>
 </div>
 </div>
-<div id="outline-container-org0feadaf" class="outline-3">
-<h3 id="org0feadaf">Content Format</h3>
-<div class="outline-text-3" id="text-org0feadaf">
+<div id="outline-container-orgdfdf6fc" class="outline-3">
+<h3 id="orgdfdf6fc">Content Format</h3>
+<div class="outline-text-3" id="text-orgdfdf6fc">
 <ul class="org-ul">
 <li>Paragraphs are separated by blank lines</li>
 <li>Single newlines within a paragraph are joined with spaces</li>
@@ -679,7 +889,7 @@ Examples:
 <p>
 Example content:
 </p>
-<pre class="example" id="orgca68d5b">
+<pre class="example" id="orgcbf869a">
 The rain fell steadily on the old tin roof. Maria sat by the window,
 watching the droplets race each other down the glass.
 
@@ -693,23 +903,24 @@ his coat. "I'm _so_ sorry," he said.
 </div>
 </div>
 </div>
-<div id="outline-container-org60c864a" class="outline-2">
-<h2 id="org60c864a">Output Format</h2>
-<div class="outline-text-2" id="text-org60c864a">
+<div id="outline-container-org792bd8e" class="outline-2">
+<h2 id="org792bd8e">Output Format</h2>
+<div class="outline-text-2" id="text-org792bd8e">
 <p>
-The generated ODT uses standard manuscript format:
+The generated ODT adheres to standard manuscript format as follows:
 </p>
 
 <ul class="org-ul">
 <li>1 inch margins on all sides</li>
-<li>Courier New, 12pt</li>
+<li>Courier New, 12pt (for novels) and Times New Roman 12pt (for short stories)</li>
 <li>Double-spaced lines</li>
-<li>0.5 inch first-line indent (except after headings/scene breaks)</li>
-<li>Centered chapter headings (positioned 1/3 down page)</li>
+<li>0.5 inch first-line indent</li>
+<li>Centered chapter headings (positioned halfway down page)</li>
 <li>Page break before each chapter (except first)</li>
 <li>No widow/orphan control</li>
 <li>Optional title page (no header)</li>
 <li>Optional page header with author/title/page number</li>
+<li>Novel and short story binding styles</li>
 </ul>
 </div>
 </div>

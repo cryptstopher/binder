@@ -52,7 +52,7 @@
 [[file:images/title.png]]
 
 
-Binder is free, open source software for power writers composing long form works in plain text.
+Binder is free, open source software for power writers composing long form or short form works in plain text.
 
 Stay organized with a clean, elegant directory structure, so you can:
 
@@ -61,7 +61,7 @@ Stay organized with a clean, elegant directory structure, so you can:
 3. Send what you write to editors, publishers, and/or agencies.
 
 While binder is designed for fiction writers, it can be used as a general purpose tool for any piece of writing with multiple chapters or sections.
-Optimized for simplicity, with full support for compilation into standard manuscription format, scene breaks, and a variety of customizable heading structures, binder is a powerful tool for managing a complicated work of literature down to the finest detail.
+Optimized for simplicity, with full support for compilation into standard manuscript format, scene breaks, and a variety of customizable heading structures, binder is a powerful tool for managing a complicated work of literature down to the finest detail.
 
 #+toc: headlines 2 
 
@@ -77,19 +77,19 @@ Optimized for simplicity, with full support for compilation into standard manusc
    binder --init
    #+end_src
 
-3. Edit =binder.toml= with your manuscript details
+3. Edit ~binder.toml~ with your manuscript details
 
-4. Add chapter files to =draft/= using the naming format:
-   - =1_Chapter_Title.txt=
-   - =2_The_Journey_Begins.txt=
-   - =3_Into_The_Woods.txt=
+4. Add chapter files to ~draft/~ using the naming format:
+   - ~1_Chapter_Title.txt~
+   - ~2_The_Journey_Begins.txt~
+   - ~3_Into_The_Woods.txt~
 
 5. Bind chapters into an ODT:
    #+begin_src bash
    binder --bind
    #+end_src
 
-6. Find your manuscript in =trash/=
+6. Find your manuscript in ~trash/~
 
 * Configuration
 
@@ -97,10 +97,13 @@ All of the customizable options are available via command line, but you may find
 
 ** Config File
 
-Running =--init= creates a =binder.toml= configuration file.
+Running ~--init~ creates a ~binder.toml~ configuration file.
 Settings in this file are used automatically, but can be overridden by command line arguments.
 
 #+begin_src toml
+# Binding style: "novel" or "short-story"
+binding = "novel"
+
 # Chapter heading style: "roman", "title", "num", "chapter", or "nil"
 heading = "num"
 
@@ -136,26 +139,28 @@ email@example.com
 Config files are searched in this order:
 
 1. Current working directory
-2. Project path (=-p= directory)
-3. =~/.config/binder.toml=
+2. Project path (~-p~ directory)
+3. ~~/.config/binder.toml~
 
 ** Command Line Options
 
 | Option             | Short | Description                                |
 |--------------------+-------+--------------------------------------------|
-| =--init=           |       | Create draft/, trash/, and binder.toml     |
-| =--bind=           |       | Bind chapter files into ODT                |
-| =--output=         | =-o=  | Specify output filename                    |
-| =--path=           | =-p=  | Base path for project (default: current)   |
-| =--heading=        |       | Chapter heading style (see below)          |
-| =--author=         |       | Author surname for page header             |
-| =--short-title=    |       | Short title for page header                |
-| =--config=         | =-c=  | Path to config file                        |
-| =--no-config=      |       | Ignore config file                         |
-| =--title=          |       | Full manuscript title for title page       |
-| =--author-name=    |       | Author's full name for title page          |
-| =--author-address= |       | Author's contact address for title page    |
-| =--no-title-page=  |       | Disable the title page                     |
+| ~--init~           |       | Create draft/, trash/, and binder.toml     |
+| ~--bind~           |       | Bind chapter files into ODT                |
+| ~--output~         | ~-o~  | Specify output filename                    |
+| ~--path~           | ~-p~  | Base path for project (default: current)   |
+| ~--heading~        |       | Chapter heading style (see below)          |
+| ~--binding~        |       | Binding style: ~novel~ or ~short-story~   |
+| ~--author~         |       | Author surname for page header             |
+| ~--short-title~    |       | Short title for page header                |
+| ~--config~         | ~-c~  | Path to config file                        |
+| ~--no-config~      |       | Ignore config file                         |
+| ~--title~          |       | Full manuscript title for title page       |
+| ~--author-name~    |       | Author's full name for title page          |
+| ~--author-address~ |       | Author's contact address for title page    |
+| ~--no-title-page~  |       | Disable the title page                     |
+| ~--stats~          |       | Show manuscript statistics and readability  |
 
 * Title Page
 
@@ -185,11 +190,54 @@ email@example.com
 The title page has no header.
 Headers begin on the first chapter page.
 
-Disable the title page with =--no-title-page= or =title-page = false= in config.
+Disable the title page with ~--no-title-page~ or ~title-page = false~ in config.
+
+* Binding Styles
+
+Use ~--binding~ to choose between novel and short story formatting.
+
+** Novel (default)
+
+Each file becomes a chapter on its own page with a centered heading.
+The title page is a separate page with word count centered at the bottom.
+
+#+begin_src bash
+binder --bind --binding novel
+#+end_src
+
+** Short Story
+
+Files are joined as a continuous story separated by =#= scene breaks instead of chapter headings.
+The title page is compact: the word count appears top-right on the same line as the first address line, and the story text begins on the title page directly after the byline (no page break).
+
+#+begin_src bash
+binder --bind --binding short-story
+#+end_src
+
+#+begin_example
+John Smith                                        about 5,000 words
+123 Main Street
+City, State 12345
+email@example.com
+
+
+
+                         THE DARK FOREST
+
+                          by John Smith
+
+     The rain fell steadily on the old tin roof. Maria sat
+by the window, watching the droplets race each other down
+the glass...
+#+end_example
+
+Also note that short story formatting uses different font, Times New Roman instead of Courier New.
+This is standard practice.
+Likewise, the emphasis used in the final output will be /italics/ instead of _underlines_.
 
 * Page Header
 
-When =author= and/or =short-title= are provided, a right-aligned header appears on each page (except the title page):
+When ~author~ and/or ~short-title~ are provided, a right-aligned header appears on each page (except the title page):
 
 #+begin_example
                                           Smith / DARK FOREST / 1
@@ -198,7 +246,7 @@ When =author= and/or =short-title= are provided, a right-aligned header appears 
 
 * Heading Styles
 
-Use =--heading= to control how chapter headings appear:
+Use ~--heading~ to control how chapter headings appear:
 
 | Style     | Example Output     | Description                    |
 |-----------+--------------------+--------------------------------|
@@ -207,6 +255,43 @@ Use =--heading= to control how chapter headings appear:
 | =title=   | THE DARK FOREST    | File title in ALL CAPS         |
 | =chapter= | Chapter 1          | "Chapter" followed by number   |
 | =nil=     | (blank)            | No heading, preserves spacing  |
+
+* Manuscript Statistics
+
+Use ~--stats~ to print a readability report for your manuscript:
+
+#+begin_src bash
+binder --stats
+#+end_src
+
+#+begin_example
+Manuscript Statistics
+──────────────────────────────
+  Words:                 45,678
+  Paragraphs:            1,234
+  Sentences:             2,345
+  Words/Paragraph:       37.0
+  Sentences/Paragraph:   1.9
+  Flesch Reading Ease:   65.2 (Standard)
+#+end_example
+
+The Flesch Reading Ease score is interpreted as follows:
+
+| Score  | Label            |
+|--------+------------------|
+| 90–100 | Very Easy        |
+| 80–89  | Easy             |
+| 70–79  | Fairly Easy      |
+| 60–69  | Standard         |
+| 50–59  | Fairly Difficult |
+| 30–49  | Difficult        |
+| 0–29   | Very Confusing   |
+
+You can combine ~--stats~ with ~--bind~ to see statistics and produce an ODT in a single command:
+
+#+begin_src bash
+binder --stats --bind
+#+end_src
 
 * Example command line operations
 
@@ -226,11 +311,20 @@ binder --bind --author "Smith" --short-title "Dark Forest"
 # Bind with title page
 binder --bind --title "The Dark Forest" --author-name "John Smith"
 
+# Bind as a short story
+binder --bind --binding short-story
+
 # Use a specific config file
 binder --bind -c ~/my-config.toml
 
 # Ignore config file, use only CLI args
 binder --bind --no-config --author "Smith"
+
+# Show manuscript statistics
+binder --stats
+
+# Show stats and bind in one command
+binder --stats --bind
 
 # Work with a different project directory
 binder --init --bind -p ~/projects/my-book
@@ -246,7 +340,7 @@ Then run:
 binder --init
 #+end_src
 
-After running =--init= you will get all this:
+After running ~--init~ you will get all this:
 
 #+begin_example
 project/
@@ -262,23 +356,23 @@ So the purpose of the "trash" directory is simply to keep the ODT files separate
 
 ** Naming Convention
 
-Files must match the pattern: =N_Title.txt=
+Files must match the pattern: ~N_Title.txt~
 
-- =N= is the chapter number (determines order)
-- =Title= uses underscores for spaces
-- Extension must be =.txt=
+- ~N~ is the chapter number (determines order)
+- ~Title~ uses underscores for spaces
+- Extension must be ~.txt~
 
 Examples:
-- =1_The_Beginning.txt=
-- =2_Rising_Action.txt=
-- =10_The_Climax.txt=
+- ~1_The_Beginning.txt~
+- ~2_Rising_Action.txt~
+- ~10_The_Climax.txt~
 
 ** Content Format
 
 - Paragraphs are separated by blank lines
 - Single newlines within a paragraph are joined with spaces
-- Scene breaks: =#=, =###=, =***=, =* * *=, or =---=
-- Emphasis: =_text_= renders as underlined text
+- Scene breaks: ~#~, ~###~, ~***~, ~* * *~, or ~---~
+- Emphasis: ~_text_~ renders as underlined text
 
 Example content:
 #+begin_example
@@ -298,11 +392,12 @@ his coat. "I'm _so_ sorry," he said.
 The generated ODT adheres to standard manuscript format as follows:
 
 - 1 inch margins on all sides
-- Courier New, 12pt
+- Courier New, 12pt (for novels) and Times New Roman 12pt (for short stories)
 - Double-spaced lines
-- 0.5 inch first-line indent (except after headings/scene breaks)
+- 0.5 inch first-line indent
 - Centered chapter headings (positioned halfway down page)
 - Page break before each chapter (except first)
 - No widow/orphan control
 - Optional title page (no header)
 - Optional page header with author/title/page number
+- Novel and short story binding styles

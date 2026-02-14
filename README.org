@@ -1,12 +1,11 @@
 #+TITLE: Binder
 
-A formatting assistant for writing novels in plain text.
-Binds chapter drafts into an ODT file with standard manuscript formatting.
+A formatting assistant for writing novels and short stories in plain text.
+Binds chapter drafts and scenes into an ODT file with standard manuscript formatting.
 Text editor agnostic; use whatever you like!
 Works in your command line.
 
-* Quick Start
-
+** Quick Start
 
 #+begin_src bash
 pip install -e .
@@ -15,19 +14,20 @@ binder --init
 binder --bind
 #+end_src
 
-* Features
+** Features
 
-- Standard manuscript format (Courier 12pt, double-spaced, 1" margins)
+- Standard manuscript format (Courier or Times New Roman 12pt, double-spaced, 1" margins)
+- Novel and short story binding styles
 - Title page with contact info, title, author, and word count
 - Page headers (Author / Title / Page)
 - Chapter headings (numeric, roman numerals, or title)
 - Scene breaks and emphasis markup
+- Manuscript statistics and Flesch readability scoring
 - TOML configuration file support
 
-* Documentation
+** Documentation
 
-Full documentation available [here](https://cryptstopher.github.io/binder/).
+Full documentation available [[https://cryptstopher.github.io/binder/][here]].
 
-* License
 
-MIT
+

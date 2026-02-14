@@ -34,6 +34,7 @@ DEFAULT_CONFIG = {
     "author_name": "",
     "author_address": "",
     "title_page": True,
+    "binding": "novel",
 }
 
 
@@ -114,6 +115,9 @@ def merge_config_with_args(config: dict, args: argparse.Namespace) -> argparse.N
     if args.heading == "num" and config.get("heading"):
         args.heading = config["heading"]
 
+    if args.binding == "novel" and config.get("binding"):
+        args.binding = config["binding"]
+
     if not args.author and config.get("author"):
         args.author = config["author"]
 
@@ -179,10 +183,10 @@ def int_to_roman(num: int) -> str:
     return roman_num
 
 
-def add_text_with_emphasis(parent: ET.Element, text: str) -> None:
+def add_text_with_emphasis(parent: ET.Element, text: str, emphasis_style: str = "Underline") -> None:
     """
-    Add text to a paragraph element, parsing _emphasis_ markers into italic spans.
-    Text surrounded by underscores becomes italicized.
+    Add text to a paragraph element, parsing _emphasis_ markers into styled spans.
+    Text surrounded by underscores gets the specified emphasis style.
     """
     # Pattern matches _text_ but not __text__ or isolated underscores
     pattern = re.compile(r'(?<![_\w])_([^_]+)_(?![_\w])')
@@ -210,7 +214,7 @@ def add_text_with_emphasis(parent: ET.Element, text: str) -> None:
         else:
             # Emphasized text (inside underscores)
             span = ET.SubElement(parent, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}span')
-            span.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'Underline')
+            span.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', emphasis_style)
             span.text = part
             span.tail = ''
 
@@ -232,6 +236,9 @@ def create_folder_structure(base_path: Path) -> None:
         config_content = """\
 # Binder configuration file
 # Command line arguments override these values.
+
+# Binding style: "novel" or "short-story"
+binding = "novel"
 
 # Chapter heading style: "roman", "title", "num", "chapter", or "nil"
 heading = "num"
@@ -310,14 +317,16 @@ def create_manifest_xml() -> str:
     return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(manifest, encoding='unicode')
 
 
-def create_styles_xml(author: str = "", short_title: str = "") -> str:
+def create_styles_xml(author: str = "", short_title: str = "", binding: str = "novel") -> str:
     """
     Create styles.xml with standard manuscript format:
     - 1 inch margins
-    - Courier New 12pt
+    - Courier New 12pt (novel) or Times New Roman 12pt (short-story)
     - Double spacing
     - Right-aligned header with author / title / page number
     """
+    font_name = 'Times New Roman' if binding == 'short-story' else 'Courier New'
+
     # Root element
     doc = ET.Element('{urn:oasis:names:tc:opendocument:xmlns:office:1.0}document-styles')
     doc.set('{urn:oasis:names:tc:opendocument:xmlns:office:1.0}version', '1.2')
@@ -325,10 +334,15 @@ def create_styles_xml(author: str = "", short_title: str = "") -> str:
     # Font declarations
     font_decls = ET.SubElement(doc, '{urn:oasis:names:tc:opendocument:xmlns:office:1.0}font-face-decls')
     font = ET.SubElement(font_decls, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-face')
-    font.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}name', 'Courier New')
-    font.set('{urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0}font-family', "'Courier New'")
-    font.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-family-generic', 'modern')
-    font.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-pitch', 'fixed')
+    font.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}name', font_name)
+    if binding == 'short-story':
+        font.set('{urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0}font-family', "'Times New Roman'")
+        font.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-family-generic', 'roman')
+        font.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-pitch', 'variable')
+    else:
+        font.set('{urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0}font-family', "'Courier New'")
+        font.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-family-generic', 'modern')
+        font.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-pitch', 'fixed')
 
     # Automatic styles
     auto_styles = ET.SubElement(doc, '{urn:oasis:names:tc:opendocument:xmlns:office:1.0}automatic-styles')
@@ -372,7 +386,7 @@ def create_styles_xml(author: str = "", short_title: str = "") -> str:
     header_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}text-align', 'end')
 
     header_text_props = ET.SubElement(header_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-properties')
-    header_text_props.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', 'Courier New')
+    header_text_props.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', font_name)
     header_text_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}font-size', '12pt')
 
     # Master styles
@@ -414,7 +428,7 @@ def create_styles_xml(author: str = "", short_title: str = "") -> str:
 def create_content_xml(chapters: list[tuple[int, str, Path]], title: str = "Manuscript",
                        heading_style: str = "num", author_name: str = "",
                        author_address: str = "", title_page: bool = True,
-                       word_count: int = 0) -> str:
+                       word_count: int = 0, binding: str = "novel") -> str:
     """
     Create content.xml with the manuscript content.
     Standard manuscript format with double spacing, first-line indent, etc.
@@ -424,6 +438,9 @@ def create_content_xml(chapters: list[tuple[int, str, Path]], title: str = "Manu
         - "title": File title in ALL CAPS, no number
         - "num": Just the number (1, 2, 3...)
     """
+    font_name = 'Times New Roman' if binding == 'short-story' else 'Courier New'
+    emphasis_style = 'Italic' if binding == 'short-story' else 'Underline'
+
     # Root element
     doc = ET.Element('{urn:oasis:names:tc:opendocument:xmlns:office:1.0}document-content')
     doc.set('{urn:oasis:names:tc:opendocument:xmlns:office:1.0}version', '1.2')
@@ -431,10 +448,15 @@ def create_content_xml(chapters: list[tuple[int, str, Path]], title: str = "Manu
     # Font declarations
     font_decls = ET.SubElement(doc, '{urn:oasis:names:tc:opendocument:xmlns:office:1.0}font-face-decls')
     font = ET.SubElement(font_decls, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-face')
-    font.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}name', 'Courier New')
-    font.set('{urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0}font-family', "'Courier New'")
-    font.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-family-generic', 'modern')
-    font.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-pitch', 'fixed')
+    font.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}name', font_name)
+    if binding == 'short-story':
+        font.set('{urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0}font-family', "'Times New Roman'")
+        font.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-family-generic', 'roman')
+        font.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-pitch', 'variable')
+    else:
+        font.set('{urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0}font-family', "'Courier New'")
+        font.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-family-generic', 'modern')
+        font.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-pitch', 'fixed')
 
     # Automatic styles
     auto_styles = ET.SubElement(doc, '{urn:oasis:names:tc:opendocument:xmlns:office:1.0}automatic-styles')
@@ -453,7 +475,7 @@ def create_content_xml(chapters: list[tuple[int, str, Path]], title: str = "Manu
     p_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}orphans', '0')
 
     text_props = ET.SubElement(p_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-properties')
-    text_props.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', 'Courier New')
+    text_props.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', font_name)
     text_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}font-size', '12pt')
 
     # Chapter heading style - centered, no indent
@@ -471,7 +493,7 @@ def create_content_xml(chapters: list[tuple[int, str, Path]], title: str = "Manu
     h_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}orphans', '0')
 
     h_text = ET.SubElement(h_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-properties')
-    h_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', 'Courier New')
+    h_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', font_name)
     h_text.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}font-size', '12pt')
     h_text.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}font-weight', 'normal')
 
@@ -490,7 +512,7 @@ def create_content_xml(chapters: list[tuple[int, str, Path]], title: str = "Manu
     sb_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}orphans', '0')
 
     sb_text = ET.SubElement(sb_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-properties')
-    sb_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', 'Courier New')
+    sb_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', font_name)
     sb_text.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}font-size', '12pt')
 
     # Chapter heading with page break (for chapters after the first)
@@ -509,36 +531,29 @@ def create_content_xml(chapters: list[tuple[int, str, Path]], title: str = "Manu
     hb_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}orphans', '0')
 
     hb_text = ET.SubElement(hb_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-properties')
-    hb_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', 'Courier New')
+    hb_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', font_name)
     hb_text.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}font-size', '12pt')
     hb_text.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}font-weight', 'normal')
 
-    # First paragraph style (no indent after chapter heading)
-    fp_style = ET.SubElement(auto_styles, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}style')
-    fp_style.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}name', 'FirstPara')
-    fp_style.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}family', 'paragraph')
+    # Emphasis text styles
+    if binding == 'short-story':
+        # Italic style for short story emphasis
+        italic_style = ET.SubElement(auto_styles, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}style')
+        italic_style.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}name', 'Italic')
+        italic_style.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}family', 'text')
 
-    fp_props = ET.SubElement(fp_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}paragraph-properties')
-    fp_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}text-indent', '0in')
-    fp_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}margin-top', '0in')
-    fp_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}margin-bottom', '0in')
-    fp_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}line-height', '200%')
-    fp_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}widows', '0')
-    fp_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}orphans', '0')
+        italic_text = ET.SubElement(italic_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-properties')
+        italic_text.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}font-style', 'italic')
+    else:
+        # Underline style for novel emphasis (standard manuscript format)
+        underline_style = ET.SubElement(auto_styles, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}style')
+        underline_style.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}name', 'Underline')
+        underline_style.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}family', 'text')
 
-    fp_text = ET.SubElement(fp_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-properties')
-    fp_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', 'Courier New')
-    fp_text.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}font-size', '12pt')
-
-    # Underline text style (for emphasis with _underscores_)
-    underline_style = ET.SubElement(auto_styles, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}style')
-    underline_style.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}name', 'Underline')
-    underline_style.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}family', 'text')
-
-    underline_text = ET.SubElement(underline_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-properties')
-    underline_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-underline-style', 'solid')
-    underline_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-underline-width', 'auto')
-    underline_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-underline-color', 'font-color')
+        underline_text = ET.SubElement(underline_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-properties')
+        underline_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-underline-style', 'solid')
+        underline_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-underline-width', 'auto')
+        underline_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-underline-color', 'font-color')
 
     # Title page styles
     # First element style - applies TitlePage master page (no header)
@@ -555,7 +570,7 @@ def create_content_xml(chapters: list[tuple[int, str, Path]], title: str = "Manu
     first_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}line-height', '100%')
 
     first_text = ET.SubElement(first_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-properties')
-    first_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', 'Courier New')
+    first_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', font_name)
     first_text.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}font-size', '12pt')
 
     # Address style - top left, single spaced
@@ -571,7 +586,7 @@ def create_content_xml(chapters: list[tuple[int, str, Path]], title: str = "Manu
     addr_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}line-height', '100%')
 
     addr_text = ET.SubElement(addr_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-properties')
-    addr_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', 'Courier New')
+    addr_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', font_name)
     addr_text.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}font-size', '12pt')
 
     # Title style - centered, halfway down
@@ -587,7 +602,7 @@ def create_content_xml(chapters: list[tuple[int, str, Path]], title: str = "Manu
     title_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}line-height', '100%')
 
     title_text = ET.SubElement(title_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-properties')
-    title_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', 'Courier New')
+    title_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', font_name)
     title_text.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}font-size', '12pt')
 
     # Title style when it's the first element (applies TitlePage master)
@@ -604,7 +619,7 @@ def create_content_xml(chapters: list[tuple[int, str, Path]], title: str = "Manu
     title_first_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}line-height', '100%')
 
     title_first_text = ET.SubElement(title_first_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-properties')
-    title_first_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', 'Courier New')
+    title_first_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', font_name)
     title_first_text.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}font-size', '12pt')
 
     # Author name style - centered, below title
@@ -620,8 +635,32 @@ def create_content_xml(chapters: list[tuple[int, str, Path]], title: str = "Manu
     author_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}line-height', '100%')
 
     author_text_props = ET.SubElement(author_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-properties')
-    author_text_props.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', 'Courier New')
+    author_text_props.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', font_name)
     author_text_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}font-size', '12pt')
+
+    # Author row style for short-story title page (left text + right-aligned tab for word count)
+    # This is the "First" variant that sets the TitlePage master page
+    ar_style = ET.SubElement(auto_styles, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}style')
+    ar_style.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}name', 'TitlePageAuthorRowFirst')
+    ar_style.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}family', 'paragraph')
+    ar_style.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}master-page-name', 'TitlePage')
+
+    ar_props = ET.SubElement(ar_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}paragraph-properties')
+    ar_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}text-align', 'start')
+    ar_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}text-indent', '0in')
+    ar_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}margin-top', '0in')
+    ar_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}margin-bottom', '0in')
+    ar_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}line-height', '100%')
+
+    # Add right-aligned tab stop at 6.5in (text area = 8.5in - 1in - 1in)
+    ar_tab_stops = ET.SubElement(ar_props, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}tab-stops')
+    ar_tab = ET.SubElement(ar_tab_stops, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}tab-stop')
+    ar_tab.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}position', '6.5in')
+    ar_tab.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}type', 'right')
+
+    ar_text = ET.SubElement(ar_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-properties')
+    ar_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', font_name)
+    ar_text.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}font-size', '12pt')
 
     # Word count style - centered, at bottom
     wc_style = ET.SubElement(auto_styles, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}style')
@@ -636,7 +675,7 @@ def create_content_xml(chapters: list[tuple[int, str, Path]], title: str = "Manu
     wc_props.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}line-height', '100%')
 
     wc_text = ET.SubElement(wc_style, '{urn:oasis:names:tc:opendocument:xmlns:style:1.0}text-properties')
-    wc_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', 'Courier New')
+    wc_text.set('{urn:oasis:names:tc:opendocument:xmlns:style:1.0}font-name', font_name)
     wc_text.set('{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}font-size', '12pt')
 
     # Body
@@ -647,67 +686,121 @@ def create_content_xml(chapters: list[tuple[int, str, Path]], title: str = "Manu
     if title_page and (title or author_name or author_address):
         first_element = True  # Track first element to apply TitlePage master
 
-        # Author address (top left)
-        if author_address:
-            for line in author_address.strip().split('\n'):
+        if binding == "short-story":
+            # Short story title page: author/word count on same line, no page break after
+            word_count_text = f"about {word_count:,} words" if word_count > 0 else ""
+            address_lines = author_address.strip().split('\n') if author_address else []
+
+            # First address line with word count on the right via tab stop
+            if address_lines:
+                first_line = address_lines[0].strip()
                 addr_p = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
-                # First element uses TitlePageFirst to set master page (no header)
+                addr_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageAuthorRowFirst')
+                addr_p.text = first_line
+                if word_count_text:
+                    tab = ET.SubElement(addr_p, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}tab')
+                    tab.tail = word_count_text
+                first_element = False
+
+                # Remaining address lines
+                for line in address_lines[1:]:
+                    addr_p = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
+                    addr_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageAddress')
+                    addr_p.text = line.strip()
+
+            # Title (centered, middle of page)
+            if title:
+                title_p = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
                 if first_element:
-                    addr_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageFirst')
+                    title_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageTitleFirst')
                     first_element = False
                 else:
-                    addr_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageAddress')
-                addr_p.text = line.strip()
+                    title_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageTitle')
+                title_p.text = title.upper()
 
-        # Title (centered, middle of page)
-        if title:
-            title_p = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
-            if first_element:
-                # If no address, title is first - need to set master page via style
-                title_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageTitleFirst')
-                first_element = False
-            else:
-                title_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageTitle')
-            title_p.text = title.upper()
+            # Author name (centered, below title)
+            if author_name:
+                author_p = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
+                author_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageAuthor')
+                author_p.text = f"by {author_name}"
 
-        # Author name (centered, below title)
-        if author_name:
-            author_p = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
-            author_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageAuthor')
-            author_p.text = f"by {author_name}"
+            # Empty line after byline before story text
+            blank_p = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
+            blank_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageAuthor')
 
-        # Word count (centered, bottom of page)
-        if word_count > 0:
-            wc_p = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
-            wc_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageWordCount')
-            wc_p.text = f"about {word_count:,} words"
+            # No word count paragraph (already on the first address line)
+            # No page break — story text continues on this page
 
-    # Add each chapter
+        else:
+            # Novel title page
+            # Author address (top left)
+            if author_address:
+                for line in author_address.strip().split('\n'):
+                    addr_p = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
+                    # First element uses TitlePageFirst to set master page (no header)
+                    if first_element:
+                        addr_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageFirst')
+                        first_element = False
+                    else:
+                        addr_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageAddress')
+                    addr_p.text = line.strip()
+
+            # Title (centered, middle of page)
+            if title:
+                title_p = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
+                if first_element:
+                    # If no address, title is first - need to set master page via style
+                    title_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageTitleFirst')
+                    first_element = False
+                else:
+                    title_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageTitle')
+                title_p.text = title.upper()
+
+            # Author name (centered, below title)
+            if author_name:
+                author_p = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
+                author_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageAuthor')
+                author_p.text = f"by {author_name}"
+
+            # Word count (centered, bottom of page)
+            if word_count > 0:
+                wc_p = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
+                wc_p.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'TitlePageWordCount')
+                wc_p.text = f"about {word_count:,} words"
+
+    # Add each chapter/file
     for idx, (chapter_num, chapter_title, file_path) in enumerate(chapters):
-        # Chapter heading - use HeadingWithBreak for all chapters when title page exists,
-        # otherwise first chapter uses Heading (no page break)
-        heading = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
-        use_page_break = idx > 0 or (title_page and (title or author_name or author_address))
-        heading.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name',
-                    'HeadingWithBreak' if use_page_break else 'Heading')
+        has_title_page = title_page and (title or author_name or author_address)
 
-        # Set heading text based on style
-        if heading_style == "roman":
-            heading.text = int_to_roman(chapter_num)
-        elif heading_style == "title":
-            heading.text = chapter_title.upper()
-        elif heading_style == "chapter":
-            heading.text = f"Chapter {chapter_num}"
-        elif heading_style == "nil":
-            heading.text = " "  # Empty but preserves spacing
-        else:  # "num"
-            heading.text = str(chapter_num)
+        if binding == "short-story":
+            # Short story: no chapter headings, scene breaks between files
+            if idx > 0:
+                scene_break = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
+                scene_break.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'SceneBreak')
+                scene_break.text = '#'
+        else:
+            # Novel: chapter heading with page break
+            heading = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
+            use_page_break = idx > 0 or has_title_page
+            heading.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name',
+                        'HeadingWithBreak' if use_page_break else 'Heading')
+
+            # Set heading text based on style
+            if heading_style == "roman":
+                heading.text = int_to_roman(chapter_num)
+            elif heading_style == "title":
+                heading.text = chapter_title.upper()
+            elif heading_style == "chapter":
+                heading.text = f"Chapter {chapter_num}"
+            elif heading_style == "nil":
+                heading.text = " "  # Empty but preserves spacing
+            else:  # "num"
+                heading.text = str(chapter_num)
 
         # Read and add chapter content
         content = file_path.read_text(encoding='utf-8')
         paragraphs = content.split('\n\n')
 
-        first_para = True
         for para_text in paragraphs:
             para_text = para_text.strip()
             if not para_text:
@@ -718,25 +811,15 @@ def create_content_xml(chapters: list[tuple[int, str, Path]], title: str = "Manu
                 scene_break = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
                 scene_break.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'SceneBreak')
                 scene_break.text = '#'
-                first_para = True  # Next paragraph shouldn't be indented
                 continue
 
             # Regular paragraph
             para = ET.SubElement(text, '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
-            if first_para:
-                para.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'FirstPara')
-                first_para = False
-            else:
-                para.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'P1')
+            para.set('{urn:oasis:names:tc:opendocument:xmlns:text:1.0}style-name', 'P1')
 
             # Handle single newlines within paragraphs (join them)
             clean_text = ' '.join(para_text.split('\n'))
-            add_text_with_emphasis(para, clean_text)
-
-        # Add page break after chapter (except last)
-        if (chapter_num, chapter_title, file_path) != chapters[-1]:
-            # Page break is implicit with the next chapter's heading margin-top
-            pass
+            add_text_with_emphasis(para, clean_text, emphasis_style)
 
     return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(doc, encoding='unicode')
 
@@ -745,7 +828,8 @@ def create_odt(chapters: list[tuple[int, str, Path]], output_path: Path,
                title: str = "Manuscript", heading_style: str = "num",
                author: str = "", short_title: str = "",
                author_name: str = "", author_address: str = "",
-               title_page: bool = True, word_count: int = 0) -> None:
+               title_page: bool = True, word_count: int = 0,
+               binding: str = "novel") -> None:
     """Create an ODT file from the chapters."""
     with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as odt:
         # mimetype must be first and uncompressed
@@ -755,15 +839,37 @@ def create_odt(chapters: list[tuple[int, str, Path]], output_path: Path,
         odt.writestr('META-INF/manifest.xml', create_manifest_xml())
 
         # Add styles
-        odt.writestr('styles.xml', create_styles_xml(author, short_title))
+        odt.writestr('styles.xml', create_styles_xml(author, short_title, binding))
 
         # Add content
         odt.writestr('content.xml', create_content_xml(
             chapters, title, heading_style,
             author_name=author_name, author_address=author_address,
-            title_page=title_page, word_count=word_count))
+            title_page=title_page, word_count=word_count,
+            binding=binding))
 
     print(f"Created ODT file: {output_path}")
+
+
+def count_syllables(word: str) -> int:
+    """Estimate syllable count for a word using vowel-group heuristic."""
+    word = word.lower().strip(".,;:!?\"'()-")
+    if not word:
+        return 0
+    vowels = "aeiouy"
+    count = 0
+    prev_vowel = False
+    for ch in word:
+        if ch in vowels:
+            if not prev_vowel:
+                count += 1
+            prev_vowel = True
+        else:
+            prev_vowel = False
+    # Subtract silent trailing 'e' (but not for short words like "the")
+    if word.endswith('e') and len(word) > 3 and count > 1:
+        count -= 1
+    return max(1, count)
 
 
 def count_words(chapters: list[tuple[int, str, Path]]) -> int:
@@ -781,10 +887,101 @@ def round_word_count(count: int) -> int:
     return round(count / 100) * 100
 
 
+def compute_stats(chapters: list[tuple[int, str, Path]]) -> dict:
+    """Compute manuscript statistics across all chapter files."""
+    total_words = 0
+    total_paragraphs = 0
+    total_sentences = 0
+    total_syllables = 0
+
+    scene_breaks = {'#', '###', '***', '* * *', '---'}
+
+    for _, _, file_path in chapters:
+        content = file_path.read_text(encoding='utf-8')
+
+        # Paragraphs: split on double newlines, filter blanks and scene breaks
+        raw_paragraphs = content.split('\n\n')
+        for para in raw_paragraphs:
+            para = para.strip()
+            if not para or para in scene_breaks:
+                continue
+            total_paragraphs += 1
+
+            # Join wrapped lines within the paragraph
+            clean = ' '.join(para.split('\n'))
+            words = clean.split()
+            total_words += len(words)
+
+            for w in words:
+                total_syllables += count_syllables(w)
+
+            # Sentences: count terminal punctuation, but handle ellipses
+            # Replace ellipses so they don't count as 3 sentences
+            sentence_text = clean.replace('...', '\x00')
+            for ch in sentence_text:
+                if ch in '.!?':
+                    total_sentences += 1
+
+    # Avoid division by zero
+    words_per_para = total_words / total_paragraphs if total_paragraphs else 0
+    sents_per_para = total_sentences / total_paragraphs if total_paragraphs else 0
+
+    # Flesch Reading Ease
+    if total_sentences > 0 and total_words > 0:
+        flesch = (206.835
+                  - 1.015 * (total_words / total_sentences)
+                  - 84.6 * (total_syllables / total_words))
+    else:
+        flesch = 0.0
+
+    return {
+        'words': total_words,
+        'paragraphs': total_paragraphs,
+        'sentences': total_sentences,
+        'syllables': total_syllables,
+        'words_per_paragraph': words_per_para,
+        'sentences_per_paragraph': sents_per_para,
+        'flesch': flesch,
+    }
+
+
+def flesch_label(score: float) -> str:
+    """Return a readability label for a Flesch Reading Ease score."""
+    if score >= 90:
+        return "Very Easy"
+    elif score >= 80:
+        return "Easy"
+    elif score >= 70:
+        return "Fairly Easy"
+    elif score >= 60:
+        return "Standard"
+    elif score >= 50:
+        return "Fairly Difficult"
+    elif score >= 30:
+        return "Difficult"
+    else:
+        return "Very Confusing"
+
+
+def print_stats(stats: dict) -> None:
+    """Print a formatted manuscript statistics report."""
+    print()
+    print("Manuscript Statistics")
+    print("\u2500" * 30)
+    print(f"  Words:                 {stats['words']:,}")
+    print(f"  Paragraphs:            {stats['paragraphs']:,}")
+    print(f"  Sentences:             {stats['sentences']:,}")
+    print(f"  Words/Paragraph:       {stats['words_per_paragraph']:.1f}")
+    print(f"  Sentences/Paragraph:   {stats['sentences_per_paragraph']:.1f}")
+    score = stats['flesch']
+    print(f"  Flesch Reading Ease:   {score:.1f} ({flesch_label(score)})")
+    print()
+
+
 def bind_manuscript(base_path: Path, output_name: str = None, heading_style: str = "num",
                     author: str = "", short_title: str = "", title: str = "",
                     author_name: str = "", author_address: str = "",
-                    title_page: bool = True) -> None:
+                    title_page: bool = True, binding: str = "novel") -> None:
     """Find chapter files and bind them into an ODT."""
     draft_dir = base_path / "draft"
     trash_dir = base_path / "trash"
@@ -825,7 +1022,7 @@ def bind_manuscript(base_path: Path, output_name: str = None, heading_style: str
                author=author, short_title=short_title,
                title=title, author_name=author_name,
                author_address=author_address, title_page=title_page,
-               word_count=rounded_count)
+               word_count=rounded_count, binding=binding)
 
 
 def main():
@@ -860,6 +1057,13 @@ def main():
         choices=['roman', 'title', 'num', 'chapter', 'nil'],
         default='num',
         help="Chapter heading style: roman (I, II, III), title (ALL CAPS title), num (1, 2, 3), chapter (Chapter 1), nil (no heading)"
+    )
+    parser.add_argument(
+        '--binding',
+        type=str,
+        choices=['novel', 'short-story'],
+        default='novel',
+        help="Binding style: novel (chapter headings, page breaks) or short-story (scene breaks, no chapter headings)"
     )
     parser.add_argument(
         '--author',
@@ -910,6 +1114,11 @@ def main():
         dest='no_title_page',
         help="Disable the title page"
     )
+    parser.add_argument(
+        '--stats',
+        action='store_true',
+        help="Show manuscript statistics (word count, paragraphs, sentences, readability)"
+    )
 
     args = parser.parse_args()
 
@@ -933,19 +1142,34 @@ def main():
 
     base_path = Path(args.path).resolve()
 
-    if not args.init and not args.bind:
+    if not args.init and not args.bind and not args.stats:
         parser.print_help()
         return
 
     if args.init:
         create_folder_structure(base_path)
 
+    if args.stats:
+        draft_dir = base_path / "draft"
+        if not draft_dir.exists():
+            print(f"Error: Draft directory not found: {draft_dir}")
+            print("Run with --init to create the folder structure first.")
+        else:
+            chapters = find_chapter_files(draft_dir)
+            if not chapters:
+                print(f"No chapter files found in {draft_dir}")
+                print("Expected format: 1_Chapter_Title.txt, 2_Another_Chapter.txt, etc.")
+            else:
+                stats = compute_stats(chapters)
+                print_stats(stats)
+
     if args.bind:
         bind_manuscript(base_path, args.output, args.heading,
                         args.author, args.short_title,
                         title=args.title, author_name=args.author_name,
                         author_address=args.author_address,
-                        title_page=args.title_page)
+                        title_page=args.title_page,
+                        binding=args.binding)
 
 
 if __name__ == '__main__':
