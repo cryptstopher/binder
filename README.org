@@ -12,7 +12,25 @@ pip install -e .
 binder --init
 # Add chapter files to draft/ (e.g., 1_Chapter_One.txt)
 binder --bind
+binder --read   # read the manuscript in the terminal
 #+end_src
+
+** Reader View
+
+=binder --read= opens the manuscript in a distraction-free terminal reader
+that honours your =binder.toml= directives (binding style, chapter heading
+style, emphasis). Text is centered with margins; the first paragraph of each
+section is flush left and following paragraphs are indented and single-spaced.
+Novels show a table of contents and start each chapter on a new page; short
+stories flow continuously with scene breaks and no headings.
+
+| Key            | Action                          |
+|----------------+---------------------------------|
+| Space          | Next page                       |
+| Delete / Bksp  | Previous page                   |
+| n / p          | Next / previous chapter (novel) |
+| t              | Table of contents (novel)       |
+| q              | Quit                            |
 
 ** Features
 

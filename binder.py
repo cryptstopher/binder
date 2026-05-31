@@ -1025,6 +1025,353 @@ def bind_manuscript(base_path: Path, output_name: str = None, heading_style: str
                word_count=rounded_count, binding=binding)
 
 
+# ---------------------------------------------------------------------------
+# Reader view
+# ---------------------------------------------------------------------------
+
+# Paragraph-level scene break markers (mirrors create_content_xml).
+SCENE_BREAK_MARKERS = {'#', '###', '***', '* * *', '---'}
+
+# Matches _emphasis_ but not __bold__ or stray underscores (mirrors add_text_with_emphasis).
+EMPHASIS_PATTERN = re.compile(r'(?<![_\w])_([^_]+)_(?![_\w])')
+
+# A rendered line is (indent, alignment, segments) where segments is a list of
+# (word, is_emphasis) tuples. A blank line has no segments.
+_BLANK_LINE = (0, 'left', [])
+
+# Reader layout constants.
+READER_MIN_MARGIN = 6       # minimum blank columns on each side of the text
+READER_MAX_WIDTH = 72       # cap on the text column for comfortable reading
+READER_PARA_INDENT = 4      # indent applied to every paragraph after the first
+READER_VMARGIN = 3          # blank lines above and below the text block
+
+
+def parse_emphasis_runs(text: str) -> list[tuple[str, bool]]:
+    """Split text into (segment, is_emphasis) runs based on _underscore_ markers."""
+    parts = EMPHASIS_PATTERN.split(text)
+    runs = []
+    for i, part in enumerate(parts):
+        if part:
+            runs.append((part, i % 2 == 1))
+    return runs
+
+
+def parse_paragraphs(content: str) -> list[tuple[str, object]]:
+    """
+    Parse raw chapter text into a list of items:
+        ('break', None)  -> scene break
+        ('para', runs)   -> paragraph as a list of (word-run, is_emphasis) tuples
+    """
+    items = []
+    for raw in content.split('\n\n'):
+        para = raw.strip()
+        if not para:
+            continue
+        if para in SCENE_BREAK_MARKERS:
+            items.append(('break', None))
+            continue
+        clean = ' '.join(para.split('\n'))
+        items.append(('para', parse_emphasis_runs(clean)))
+    return items
+
+
+def wrap_runs(runs: list[tuple[str, bool]], width: int, first_indent: int) -> list[tuple]:
+    """
+    Word-wrap a paragraph's runs to the given width, preserving emphasis.
+    The first line is indented by first_indent; continuation lines are flush left.
+    Returns a list of (indent, 'left', segments) lines.
+    """
+    tokens = []
+    for text, emph in runs:
+        for word in text.split(' '):
+            if word:
+                tokens.append((word, emph))
+
+    if not tokens:
+        return []
+
+    lines = []
+    current: list[tuple[str, bool]] = []
+    indent = first_indent
+    length = first_indent
+    for word, emph in tokens:
+        extra = len(word) + (1 if current else 0)
+        if current and length + extra > width:
+            lines.append((indent, 'left', current))
+            current = [(word, emph)]
+            indent = 0
+            length = len(word)
+        else:
+            current.append((word, emph))
+            length += extra
+    if current:
+        lines.append((indent, 'left', current))
+    return lines
+
+
+def heading_lines(chapter_num: int, chapter_title: str, heading_style: str) -> list[tuple]:
+    """Build the rendered lines for a chapter heading (centered, with spacing)."""
+    if heading_style == "roman":
+        text = int_to_roman(chapter_num)
+    elif heading_style == "title":
+        text = chapter_title.upper()
+    elif heading_style == "chapter":
+        text = f"Chapter {chapter_num}"
+    elif heading_style == "nil":
+        text = ""
+    else:  # "num"
+        text = str(chapter_num)
+
+    if not text:
+        return [_BLANK_LINE, _BLANK_LINE]
+    return [_BLANK_LINE, _BLANK_LINE, (0, 'center', [(text, False)]), _BLANK_LINE]
+
+
+def layout_items(items: list[tuple], width: int) -> list[tuple]:
+    """
+    Convert parsed paragraph items into rendered lines.
+    The first paragraph (and the first after any scene break) is not indented;
+    every following paragraph is indented. Lines are single-spaced.
+    """
+    lines: list[tuple] = []
+    first_para = True
+    for kind, data in items:
+        if kind == 'break':
+            lines.append(_BLANK_LINE)
+            lines.append((0, 'center', [('#', False)]))
+            lines.append(_BLANK_LINE)
+            first_para = True
+            continue
+        first_indent = 0 if first_para else READER_PARA_INDENT
+        first_para = False
+        lines.extend(wrap_runs(data, width, first_indent))
+    return lines
+
+
+class _Reader:
+    """A curses-based terminal reader for the bound manuscript."""
+
+    def __init__(self, stdscr, chapters, heading_style, binding, doc_title):
+        self.stdscr = stdscr
+        self.chapters = chapters
+        self.heading_style = heading_style
+        self.binding = binding
+        self.is_short_story = (binding == "short-story")
+        self.doc_title = doc_title or "Contents"
+        self.page = 0
+
+        import curses
+        self.curses = curses
+        italic = getattr(curses, 'A_ITALIC', curses.A_UNDERLINE)
+        self.emphasis_attr = italic if self.is_short_story else curses.A_UNDERLINE
+
+        self.build_layout()
+
+    def build_layout(self):
+        """(Re)compute geometry and paginate the manuscript for the current size."""
+        height, width = self.stdscr.getmaxyx()
+        self.height = height
+        self.width = width
+        self.content_width = max(20, min(width - 2 * READER_MIN_MARGIN, READER_MAX_WIDTH))
+        self.left = max(0, (width - self.content_width) // 2)
+        # Reserve vertical margins above and below, plus the bottom status bar.
+        self.top = min(READER_VMARGIN, max(0, height - 2))
+        self.page_height = max(1, height - self.top - READER_VMARGIN - 1)
+
+        # Build the rendered line list for each chapter.
+        chapter_lines = []
+        if self.is_short_story:
+            # One continuous flow; files separated by scene breaks, no headings.
+            items = []
+            for idx, (_, _, path) in enumerate(self.chapters):
+                if idx > 0:
+                    items.append(('break', None))
+                items.extend(parse_paragraphs(path.read_text(encoding='utf-8')))
+            chapter_lines.append(layout_items(items, self.content_width))
+        else:
+            for num, title, path in self.chapters:
+                lines = heading_lines(num, title, self.heading_style)
+                items = parse_paragraphs(path.read_text(encoding='utf-8'))
+                lines.extend(layout_items(items, self.content_width))
+                chapter_lines.append(lines)
+
+        # Paginate, never letting a page span two chapters (chapters start fresh).
+        self.pages = []
+        self.chapter_first_page = []
+        for ci, lines in enumerate(chapter_lines):
+            if not lines:
+                lines = [_BLANK_LINE]
+            self.chapter_first_page.append(len(self.pages))
+            for i in range(0, len(lines), self.page_height):
+                self.pages.append((ci, lines[i:i + self.page_height]))
+
+        if not self.pages:
+            self.pages = [(0, [_BLANK_LINE])]
+            self.chapter_first_page = [0]
+        self.page = max(0, min(self.page, len(self.pages) - 1))
+
+    def _put(self, y, x, text, attr=0):
+        """Safely draw text, clipping to the screen and swallowing edge errors."""
+        if y < 0 or y >= self.height or x < 0 or x >= self.width:
+            return
+        text = text[:self.width - x]
+        if not text:
+            return
+        try:
+            self.stdscr.addstr(y, x, text, attr)
+        except self.curses.error:
+            pass
+
+    def _draw_line(self, y, line):
+        indent, align, segments = line
+        if not segments:
+            return
+        line_len = sum(len(w) for w, _ in segments) + (len(segments) - 1)
+        if align == 'center':
+            x = self.left + max(0, (self.content_width - line_len) // 2)
+        else:
+            x = self.left + indent
+        for j, (word, emph) in enumerate(segments):
+            if j > 0:
+                self._put(y, x, ' ')
+                x += 1
+            self._put(y, x, word, self.emphasis_attr if emph else 0)
+            x += len(word)
+
+    def render(self):
+        self.stdscr.erase()
+        ci, lines = self.pages[self.page]
+        for row, line in enumerate(lines):
+            self._draw_line(row + self.top, line)
+        self._draw_status(ci)
+        self.stdscr.refresh()
+
+    def _draw_status(self, ci):
+        if self.is_short_story:
+            keys = "[space] next  [del] back  [q] quit"
+            left_text = f"{self.page + 1}/{len(self.pages)}"
+        else:
+            num, title, _ = self.chapters[ci]
+            keys = "[space] next  [del] back  [n/p] chapter  [t] contents  [q] quit"
+            left_text = f"Ch {num}. {title}  ·  page {self.page + 1}/{len(self.pages)}"
+        y = self.height - 1
+        attr = self.curses.A_REVERSE
+        self._put(y, 0, ' ' * self.width, attr)
+        self._put(y, self.left, left_text, attr)
+        kx = self.width - len(keys) - 1
+        if kx > self.left + len(left_text) + 2:
+            self._put(y, kx, keys, attr)
+
+    def next_page(self):
+        if self.page < len(self.pages) - 1:
+            self.page += 1
+
+    def prev_page(self):
+        if self.page > 0:
+            self.page -= 1
+
+    def next_chapter(self):
+        ci = self.pages[self.page][0]
+        if ci + 1 < len(self.chapter_first_page):
+            self.page = self.chapter_first_page[ci + 1]
+
+    def prev_chapter(self):
+        ci = self.pages[self.page][0]
+        # If past the chapter start, jump to its start; otherwise to the previous chapter.
+        if self.page > self.chapter_first_page[ci]:
+            self.page = self.chapter_first_page[ci]
+        elif ci > 0:
+            self.page = self.chapter_first_page[ci - 1]
+
+    def show_toc(self):
+        """Display the table of contents; return True to keep reading, False to quit."""
+        curses = self.curses
+        ci = self.pages[self.page][0]
+        selection = ci
+        while True:
+            self.stdscr.erase()
+            heading = "Table of Contents"
+            self._put(1, self.left, heading, curses.A_BOLD)
+            self._put(2, self.left, "─" * min(self.content_width, len(heading) + 6))
+            top = 4
+            visible = self.height - top - 1
+            start = max(0, selection - visible + 1) if selection >= visible else 0
+            for row, (num, title, _) in enumerate(self.chapters[start:start + visible]):
+                idx = start + row
+                label = f"  {num}. {title}"
+                attr = curses.A_REVERSE if idx == selection else 0
+                self._put(top + row, self.left, label.ljust(self.content_width), attr)
+            self._put(self.height - 1, self.left,
+                      "[↑/↓] move  [enter] open  [q] back",
+                      curses.A_REVERSE)
+            self.stdscr.refresh()
+
+            k = self.stdscr.getch()
+            if k in (ord('q'), ord('t'), 27):
+                return True
+            elif k in (curses.KEY_UP, ord('k')):
+                selection = max(0, selection - 1)
+            elif k in (curses.KEY_DOWN, ord('j')):
+                selection = min(len(self.chapters) - 1, selection + 1)
+            elif k in (curses.KEY_ENTER, ord('\n'), ord('\r'), ord(' ')):
+                self.page = self.chapter_first_page[selection]
+                return True
+            elif k == curses.KEY_RESIZE:
+                self.build_layout()
+
+    def run(self):
+        curses = self.curses
+        curses.curs_set(0)
+        self.stdscr.keypad(True)
+        while True:
+            self.render()
+            k = self.stdscr.getch()
+            if k in (ord('q'), 27):
+                break
+            elif k in (ord(' '), curses.KEY_NPAGE, curses.KEY_RIGHT, curses.KEY_DOWN):
+                self.next_page()
+            elif k in (curses.KEY_BACKSPACE, 127, 8, curses.KEY_DC,
+                       curses.KEY_PPAGE, curses.KEY_LEFT, curses.KEY_UP):
+                self.prev_page()
+            elif k == ord('n') and not self.is_short_story:
+                self.next_chapter()
+            elif k == ord('p') and not self.is_short_story:
+                self.prev_chapter()
+            elif k == ord('t') and not self.is_short_story:
+                if not self.show_toc():
+                    break
+            elif k == curses.KEY_RESIZE:
+                self.build_layout()
+
+
+def read_manuscript(base_path: Path, heading_style: str = "num",
+                    binding: str = "novel", title: str = "",
+                    short_title: str = "") -> None:
+    """Open the bound manuscript in an interactive terminal reader."""
+    draft_dir = base_path / "draft"
+    if not draft_dir.exists():
+        print(f"Error: Draft directory not found: {draft_dir}")
+        print("Run with --init to create the folder structure first.")
+        return
+
+    chapters = find_chapter_files(draft_dir)
+    if not chapters:
+        print(f"No chapter files found in {draft_dir}")
+        print("Expected format: 1_Chapter_Title.txt, 2_Another_Chapter.txt, etc.")
+        return
+
+    try:
+        import curses
+    except ImportError:
+        print("Reader view requires the 'curses' module (available on Unix terminals).",
+              file=sys.stderr)
+        return
+
+    doc_title = title or short_title
+    curses.wrapper(lambda stdscr: _Reader(
+        stdscr, chapters, heading_style, binding, doc_title).run())
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Bind chapter drafts into a manuscript ODT file with standard formatting.",
@@ -1039,6 +1386,11 @@ def main():
         '--bind',
         action='store_true',
         help="Bind chapter files from draft/ into an ODT in trash/"
+    )
+    parser.add_argument(
+        '--read',
+        action='store_true',
+        help="Open the manuscript in an interactive terminal reader view"
     )
     parser.add_argument(
         '--output', '-o',
@@ -1142,7 +1494,7 @@ def main():
 
     base_path = Path(args.path).resolve()
 
-    if not args.init and not args.bind and not args.stats:
+    if not args.init and not args.bind and not args.stats and not args.read:
         parser.print_help()
         return
 
@@ -1170,6 +1522,11 @@ def main():
                         author_address=args.author_address,
                         title_page=args.title_page,
                         binding=args.binding)
+
+    if args.read:
+        read_manuscript(base_path, heading_style=args.heading,
+                        binding=args.binding, title=args.title,
+                        short_title=args.short_title)
 
 
 if __name__ == '__main__':
