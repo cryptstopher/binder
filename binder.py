@@ -1044,6 +1044,7 @@ READER_MIN_MARGIN = 6       # minimum blank columns on each side of the text
 READER_MAX_WIDTH = 72       # cap on the text column for comfortable reading
 READER_PARA_INDENT = 4      # indent applied to every paragraph after the first
 READER_VMARGIN = 3          # blank lines above and below the text block
+READER_POLL_MS = 750        # how often to poll draft files for changes (ms)
 
 
 def parse_emphasis_runs(text: str) -> list[tuple[str, bool]]:
@@ -1151,21 +1152,58 @@ def layout_items(items: list[tuple], width: int) -> list[tuple]:
 class _Reader:
     """A curses-based terminal reader for the bound manuscript."""
 
-    def __init__(self, stdscr, chapters, heading_style, binding, doc_title):
+    def __init__(self, stdscr, draft_dir, heading_style, binding, doc_title):
         self.stdscr = stdscr
-        self.chapters = chapters
+        self.draft_dir = draft_dir
         self.heading_style = heading_style
         self.binding = binding
         self.is_short_story = (binding == "short-story")
         self.doc_title = doc_title or "Contents"
         self.page = 0
+        self.flash = None       # transient status message (e.g. after a reload)
 
         import curses
         self.curses = curses
         italic = getattr(curses, 'A_ITALIC', curses.A_UNDERLINE)
         self.emphasis_attr = italic if self.is_short_story else curses.A_UNDERLINE
 
+        self.chapters, self.file_sig = self.scan()
         self.build_layout()
+
+    def scan(self):
+        """Find the draft chapter files and snapshot their modification times.
+
+        Returns (chapters, signature) where signature maps each file path to its
+        mtime, so a later scan can tell whether anything was saved, added, or
+        removed on disk.
+        """
+        chapters = find_chapter_files(self.draft_dir)
+        signature = {}
+        for _, _, path in chapters:
+            try:
+                signature[str(path)] = path.stat().st_mtime_ns
+            except OSError:
+                signature[str(path)] = None
+        return chapters, signature
+
+    def files_changed(self):
+        """Return True if the draft files differ from the last loaded snapshot."""
+        _, signature = self.scan()
+        return signature != self.file_sig
+
+    def refresh(self):
+        """Reload the draft files and re-paginate, keeping the reading position."""
+        # Remember roughly where we are: which chapter and how far into it.
+        ci = self.pages[self.page][0] if self.pages else 0
+        page_in_chapter = self.page - self.chapter_first_page[ci] if self.pages else 0
+
+        self.chapters, self.file_sig = self.scan()
+        self.build_layout()
+
+        if ci < len(self.chapter_first_page):
+            target = self.chapter_first_page[ci] + page_in_chapter
+            self.page = max(0, min(target, len(self.pages) - 1))
+        self.flash = "reloaded"
 
     def build_layout(self):
         """(Re)compute geometry and paginate the manuscript for the current size."""
@@ -1247,13 +1285,18 @@ class _Reader:
         self.stdscr.refresh()
 
     def _draw_status(self, ci):
-        if self.is_short_story:
-            keys = "[space] next  [del] back  [q] quit"
+        if not self.chapters:
+            keys = "[r] reload  [q] quit"
+            left_text = "No chapter files in draft/"
+        elif self.is_short_story:
+            keys = "[space] next  [del] back  [r] reload  [q] quit"
             left_text = f"{self.page + 1}/{len(self.pages)}"
         else:
             num, title, _ = self.chapters[ci]
-            keys = "[space] next  [del] back  [n/p] chapter  [t] contents  [q] quit"
+            keys = "[space] next  [del] back  [n/p] chapter  [t] contents  [r] reload  [q] quit"
             left_text = f"Ch {num}. {title}  ·  page {self.page + 1}/{len(self.pages)}"
+        if self.flash:
+            left_text = f"{left_text}  ·  {self.flash}"
         y = self.height - 1
         attr = self.curses.A_REVERSE
         self._put(y, 0, ' ' * self.width, attr)
@@ -1286,6 +1329,7 @@ class _Reader:
     def show_toc(self):
         """Display the table of contents; return True to keep reading, False to quit."""
         curses = self.curses
+        self.stdscr.timeout(-1)     # block while in the contents menu
         ci = self.pages[self.page][0]
         selection = ci
         while True:
@@ -1323,11 +1367,22 @@ class _Reader:
         curses = self.curses
         curses.curs_set(0)
         self.stdscr.keypad(True)
+        # Wake periodically with getch() == -1 so we can poll for file changes.
+        self.stdscr.timeout(READER_POLL_MS)
+        self.render()
         while True:
-            self.render()
             k = self.stdscr.getch()
+            if k == -1:
+                # Idle tick: reload automatically if the draft files changed.
+                if self.files_changed():
+                    self.refresh()
+                    self.render()
+                continue
+            self.flash = None
             if k in (ord('q'), 27):
                 break
+            elif k in (ord('r'), ord('R')):
+                self.refresh()
             elif k in (ord(' '), curses.KEY_NPAGE, curses.KEY_RIGHT, curses.KEY_DOWN):
                 self.next_page()
             elif k in (curses.KEY_BACKSPACE, 127, 8, curses.KEY_DC,
@@ -1337,11 +1392,14 @@ class _Reader:
                 self.next_chapter()
             elif k == ord('p') and not self.is_short_story:
                 self.prev_chapter()
-            elif k == ord('t') and not self.is_short_story:
-                if not self.show_toc():
+            elif k == ord('t') and not self.is_short_story and self.chapters:
+                keep_reading = self.show_toc()
+                self.stdscr.timeout(READER_POLL_MS)   # resume change polling
+                if not keep_reading:
                     break
             elif k == curses.KEY_RESIZE:
                 self.build_layout()
+            self.render()
 
 
 def read_manuscript(base_path: Path, heading_style: str = "num",
@@ -1369,7 +1427,7 @@ def read_manuscript(base_path: Path, heading_style: str = "num",
 
     doc_title = title or short_title
     curses.wrapper(lambda stdscr: _Reader(
-        stdscr, chapters, heading_style, binding, doc_title).run())
+        stdscr, draft_dir, heading_style, binding, doc_title).run())
 
 
 def main():

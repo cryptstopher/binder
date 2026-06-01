@@ -30,7 +30,12 @@ stories flow continuously with scene breaks and no headings.
 | Delete / Bksp  | Previous page                   |
 | n / p          | Next / previous chapter (novel) |
 | t              | Table of contents (novel)       |
+| r              | Reload draft files              |
 | q              | Quit                            |
+
+The reader keeps itself in sync with your drafts: when you save, add, or
+remove a chapter file the view reloads automatically (keeping your place), and
+you can force a reload at any time with =r=.
 
 ** Features
 
