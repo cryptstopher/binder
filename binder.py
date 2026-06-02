@@ -893,11 +893,13 @@ def compute_stats(chapters: list[tuple[int, str, Path]]) -> dict:
     total_paragraphs = 0
     total_sentences = 0
     total_syllables = 0
+    files = []
 
     scene_breaks = {'#', '###', '***', '* * *', '---'}
 
-    for _, _, file_path in chapters:
+    for num, name, file_path in chapters:
         content = file_path.read_text(encoding='utf-8')
+        file_words = 0
 
         # Paragraphs: split on double newlines, filter blanks and scene breaks
         raw_paragraphs = content.split('\n\n')
@@ -911,6 +913,7 @@ def compute_stats(chapters: list[tuple[int, str, Path]]) -> dict:
             clean = ' '.join(para.split('\n'))
             words = clean.split()
             total_words += len(words)
+            file_words += len(words)
 
             for w in words:
                 total_syllables += count_syllables(w)
@@ -921,6 +924,8 @@ def compute_stats(chapters: list[tuple[int, str, Path]]) -> dict:
             for ch in sentence_text:
                 if ch in '.!?':
                     total_sentences += 1
+
+        files.append({'name': name, 'filename': file_path.name, 'words': file_words})
 
     # Avoid division by zero
     words_per_para = total_words / total_paragraphs if total_paragraphs else 0
@@ -942,6 +947,7 @@ def compute_stats(chapters: list[tuple[int, str, Path]]) -> dict:
         'words_per_paragraph': words_per_para,
         'sentences_per_paragraph': sents_per_para,
         'flesch': flesch,
+        'files': files,
     }
 
 
@@ -968,6 +974,24 @@ def print_stats(stats: dict) -> None:
     print()
     print("Manuscript Statistics")
     print("\u2500" * 30)
+
+    files = stats.get('files', [])
+    if files:
+        total = stats['words']
+        # Width of the label column, sized to the longest file label
+        label_width = max((len(f['name']) for f in files), default=0)
+        label_width = max(label_width, len("File"))
+        rule = "  " + "\u2500" * label_width + "   " + "\u2500" * 8 + "   " + "\u2500" * 6
+        print("  Files")
+        print(f"  {'File'.ljust(label_width)}   {'Words':>8}   {'%':>6}")
+        print(rule)
+        for f in files:
+            pct = (f['words'] / total * 100) if total else 0
+            print(f"  {f['name'].ljust(label_width)}   {f['words']:>8,}   {pct:>5.1f}%")
+        print(rule)
+        print(f"  {'Total'.ljust(label_width)}   {total:>8,}   {100.0:>5.1f}%")
+        print()
+
     print(f"  Words:                 {stats['words']:,}")
     print(f"  Paragraphs:            {stats['paragraphs']:,}")
     print(f"  Sentences:             {stats['sentences']:,}")
