@@ -1454,6 +1454,649 @@ def read_manuscript(base_path: Path, heading_style: str = "num",
         stdscr, draft_dir, heading_style, binding, doc_title).run())
 
 
+# ─── Outline view (org-mode) ─────────────────────────────────────────────────
+#
+# A small, terminal-friendly browser for a single .org file. It is built to
+# stay legible on a cramped screen (as little as ~16 columns x ~16 rows) and on
+# terminals with only the 16 base colors or none at all: it draws with the
+# universal curses attributes (A_REVERSE, A_BOLD, A_UNDERLINE) only, never with
+# color pairs, and every view scrolls or paginates so nothing assumes space.
+
+ORG_HEADING_RE = re.compile(r'^(\*+)\s+(.*?)\s*$')
+# A trailing :tag1:tag2: cluster on a heading line.
+ORG_TAGS_RE = re.compile(r'\s+(:[A-Za-z0-9_@#%:]+:)\s*$')
+# A leading TODO-style keyword to strip from a heading title.
+ORG_TODO_RE = re.compile(r'^(TODO|DONE|NEXT|WAIT|WAITING|HOLD|CANCELLED|DONE)\b\s*')
+# `#+OPTIONS: num:nil` turns section numbering off (it is on by default).
+ORG_NUM_OFF_RE = re.compile(r'#\+OPTIONS:[^\n]*\bnum:nil\b')
+# `#+TITLE: ...` document title (used as the display name when present).
+ORG_TITLE_RE = re.compile(r'^\s*#\+TITLE:\s*(.*)$', re.IGNORECASE | re.MULTILINE)
+# A property line inside a :PROPERTIES: drawer, e.g. ":Author: Jane".
+ORG_PROP_RE = re.compile(r'^:([^:]+):\s*(.*)$')
+# Unordered list item: "- text", "+ text" (with optional leading indent).
+ORG_BULLET_RE = re.compile(r'^(\s*)[-+]\s+(.*)$')
+# Ordered list item: "1. text" or "1) text" (with optional leading indent).
+ORG_ORDERED_RE = re.compile(r'^(\s*)(\d+)[.)]\s+(.*)$')
+
+OUTLINE_MARGIN = 3       # side margin columns (shrinks on narrow terminals)
+OUTLINE_POLL_MS = 750    # how often to poll the file for changes (ms)
+
+
+def parse_org_body(lines: list[str]) -> list[tuple]:
+    """Parse a heading's body lines into typed blocks.
+
+    Returns a list of blocks, each one of::
+
+        ('para', text)                  -> a paragraph
+        ('item', nest, marker, text)    -> a list item (marker is '•' for
+                                           unordered, or '1.' etc. for ordered);
+                                           nest is the indent depth (0, 1, 2…)
+
+    Blank lines separate paragraphs. List items are detected by their leading
+    bullet/number; lines indented under an item are folded into it as
+    continuation text so wrapping stays under our control.
+    """
+    blocks: list[tuple] = []
+    para: list[str] = []
+
+    def flush_para():
+        if para:
+            text = ' '.join(' '.join(l.split()) for l in para).strip()
+            if text:
+                blocks.append(('para', text))
+            para.clear()
+
+    for line in lines:
+        if not line.strip():
+            flush_para()
+            continue
+        mb = ORG_BULLET_RE.match(line)
+        mo = ORG_ORDERED_RE.match(line)
+        if mb:
+            flush_para()
+            blocks.append(('item', len(mb.group(1)) // 2, '•', mb.group(2).strip()))
+        elif mo:
+            flush_para()
+            blocks.append(('item', len(mo.group(1)) // 2,
+                           f"{mo.group(2)}.", mo.group(3).strip()))
+        elif (not para and blocks and blocks[-1][0] == 'item'
+              and line[:1] in (' ', '\t')):
+            # Indented continuation of the preceding list item.
+            kind, nest, marker, text = blocks[-1]
+            blocks[-1] = (kind, nest, marker, f"{text} {line.strip()}".strip())
+        else:
+            para.append(line)
+    flush_para()
+    return blocks
+
+
+def parse_org_tags(text: str) -> tuple[str, list[str]]:
+    """Split an org heading body into (clean_title, [tags]).
+
+    Strips a trailing ``:tag1:tag2:`` cluster and any leading TODO keyword.
+    """
+    tags: list[str] = []
+    m = ORG_TAGS_RE.search(text)
+    if m:
+        tags = [t for t in m.group(1).split(':') if t]
+        text = text[:m.start()].rstrip()
+    text = ORG_TODO_RE.sub('', text).strip()
+    return text, tags
+
+
+def parse_org(content: str) -> tuple[str, bool, list[dict]]:
+    """Parse org text into top-level sections with their sub-headings rolled up.
+
+    Returns ``(title, numbering_on, sections)``. ``title`` is the document's
+    ``#+TITLE:`` value (empty string if none). Only level-1 (``*``) headings
+    become sections; deeper headings are kept, in document order, as a flat
+    ``children`` list under their section. Each node is a dict::
+
+        {'level', 'number', 'title', 'tags', 'properties', 'body', 'children'}
+
+    ``body`` is a list of blocks from ``parse_org_body``. ``number`` is an
+    org-style outline number (``1``, ``2`` for sections; ``1.1``, ``1.2`` for
+    children) when numbering is on, otherwise an empty string.
+    """
+    numbering_on = not bool(ORG_NUM_OFF_RE.search(content))
+    tm = ORG_TITLE_RE.search(content)
+    doc_title = tm.group(1).strip() if tm else ''
+
+    sections: list[dict] = []
+    current: dict | None = None    # the level-1 section currently being filled
+    node: dict | None = None       # the heading node receiving body/properties
+    in_props = False
+    body_lines: list[str] = []
+
+    def flush_body() -> None:
+        if node is not None and body_lines:
+            node['body'].extend(parse_org_body(body_lines))
+        body_lines.clear()
+
+    for raw in content.splitlines():
+        hm = ORG_HEADING_RE.match(raw)
+        if hm:
+            flush_body()
+            in_props = False
+            level = len(hm.group(1))
+            title, tags = parse_org_tags(hm.group(2))
+            node = {'level': level, 'number': '', 'title': title, 'tags': tags,
+                    'properties': [], 'body': [], 'children': []}
+            if level == 1 or current is None:
+                # Level-1 heading, or a deeper heading before any level-1 we
+                # promote so its content is never silently dropped.
+                sections.append(node)
+                current = node
+            else:
+                current['children'].append(node)
+            continue
+
+        stripped = raw.strip()
+        if stripped.upper() == ':PROPERTIES:':
+            in_props = True
+            continue
+        if in_props:
+            if stripped.upper() == ':END:':
+                in_props = False
+            else:
+                pm = ORG_PROP_RE.match(stripped)
+                if pm and node is not None:
+                    node['properties'].append((pm.group(1).strip(), pm.group(2).strip()))
+            continue
+        if stripped.startswith('#+'):
+            continue   # skip org keyword/directive lines
+        body_lines.append(raw)
+    flush_body()
+
+    if numbering_on:
+        for i, sec in enumerate(sections, 1):
+            sec['number'] = str(i)
+            for j, child in enumerate(sec['children'], 1):
+                child['number'] = f"{i}.{j}"
+
+    return doc_title, numbering_on, sections
+
+
+class _Outline:
+    """A curses-based, tabbed outline browser for a single .org file."""
+
+    BLANK = (0, 'left', [], 0)   # an empty rendered line: (indent, align, segments, attr)
+
+    def __init__(self, stdscr, path: Path):
+        self.stdscr = stdscr
+        self.path = path
+        self.flash = None
+        self.mode = 'list'       # 'list' (heading list) or 'detail' (tabbed view)
+        self.sel = 0             # selected section index
+        self.list_top = 0        # first visible row in the list view
+        self.tab = 0             # 0=Main, 1=Properties, 2=Tags
+        self.scroll = 0          # vertical scroll within the detail view
+
+        import curses
+        self.curses = curses
+        self.emph_attr = getattr(curses, 'A_UNDERLINE', 0)
+
+        self.sections, self.numbering_on, self.doc_title, self.file_sig = self.scan()
+
+    # ── file loading / change detection ──────────────────────────────────────
+
+    def scan(self):
+        """Read and parse the file; return (sections, numbering_on, title, sig)."""
+        try:
+            content = self.path.read_text(encoding='utf-8')
+            sig = self.path.stat().st_mtime_ns
+        except OSError:
+            content, sig = '', None
+        title, numbering_on, sections = parse_org(content)
+        return sections, numbering_on, title, sig
+
+    def files_changed(self):
+        try:
+            sig = self.path.stat().st_mtime_ns
+        except OSError:
+            sig = None
+        return sig != self.file_sig
+
+    def refresh(self):
+        """Reload the file, keeping the reading position where still valid.
+
+        The selected section and scroll offset are preserved (clamped to the new
+        content), so an automatic reload after a save doesn't jump the view.
+        """
+        self.sections, self.numbering_on, self.doc_title, self.file_sig = self.scan()
+        self.sel = max(0, min(self.sel, len(self.sections) - 1)) if self.sections else 0
+        # scroll/list_top are re-clamped against the new content at render time.
+        self.flash = "reloaded"
+
+    # ── geometry / low-level drawing ─────────────────────────────────────────
+
+    def _recompute_geometry(self):
+        h, w = self.stdscr.getmaxyx()
+        self.height, self.width = h, w
+        # Use the full margin when there's room, shrinking it on narrow
+        # terminals so the content column never collapses.
+        margin = OUTLINE_MARGIN
+        if w < 2 * margin + 8:
+            margin = max(0, (w - 8) // 2)
+        self.left = margin
+        self.cw = max(4, w - 2 * self.left)
+        # A blank line at the very top of the UI, dropped on a very short screen.
+        self.tmargin = 1 if h >= 6 else 0
+
+    def _doc_name(self):
+        """The document's #+TITLE if it has one, else the file name."""
+        return self.doc_title or self.path.name
+
+    def _put(self, y, x, text, attr=0):
+        """Safely draw text, clipping to the screen and swallowing edge errors."""
+        if y < 0 or y >= self.height or x < 0 or x >= self.width:
+            return
+        text = text[:self.width - x]
+        if not text:
+            return
+        try:
+            self.stdscr.addstr(y, x, text, attr)
+        except self.curses.error:
+            pass
+
+    def _draw_line(self, y, line):
+        indent, align, segments, attr = line
+        if not segments:
+            return
+        line_len = sum(len(w) for w, _ in segments) + (len(segments) - 1)
+        if align == 'center':
+            x = self.left + max(0, (self.cw - line_len) // 2)
+        else:
+            x = self.left + indent
+        for j, (word, emph) in enumerate(segments):
+            if j > 0:
+                self._put(y, x, ' ')
+                x += 1
+            self._put(y, x, word, attr | (self.emph_attr if emph else 0))
+            x += len(word)
+
+    def _line(self, text, indent=0, align='left', attr=0, emphasis=False):
+        """Word-wrap text to the content width into a list of rendered lines."""
+        runs = parse_emphasis_runs(text) if emphasis else [(text, False)]
+        wrapped = wrap_runs(runs, max(1, self.cw - indent), indent)
+        if not wrapped:
+            return [(indent, align, [], attr)]
+        return [(i, align, seg, attr) for (i, _a, seg) in wrapped]
+
+    def _tokens(self, text, emphasis=True):
+        """Split text into (word, is_emphasis) tokens."""
+        runs = parse_emphasis_runs(text) if emphasis else [(text, False)]
+        return [(w, e) for (t, e) in runs for w in t.split(' ') if w]
+
+    def _wrap_tokens(self, tokens, indent, hang, attr=0):
+        """Word-wrap tokens with a first-line indent and a hanging continuation
+        indent, returning rendered (indent, 'left', segments, attr) lines."""
+        if not tokens:
+            return [(indent, 'left', [], attr)]
+        lines = []
+        cur: list[tuple] = []
+        cind = indent
+        for w, e in tokens:
+            width = cind + sum(len(x) for x, _ in cur) + len(cur) + len(w)
+            if cur and width > self.cw:
+                lines.append((cind, 'left', cur, attr))
+                cur = [(w, e)]
+                cind = indent + hang
+            else:
+                cur.append((w, e))
+        lines.append((cind, 'left', cur, attr))
+        return lines
+
+    def _heading_line(self, node, indent):
+        """A bold heading line wrapped at the given indent (hanging to align)."""
+        return self._wrap_tokens(self._tokens(self._heading_label(node), emphasis=False),
+                                 indent, 2, self.curses.A_BOLD)
+
+    def _render_body(self, blocks, base):
+        """Render body blocks (paragraphs + lists) starting at column ``base``.
+
+        Consecutive list items stay tight; everything else is separated by a
+        blank line (including before the first block, to part it from a heading).
+        """
+        L = []
+        prev = None
+        for blk in blocks:
+            if prev is None or not (prev[0] == 'item' and blk[0] == 'item'):
+                L.append(self.BLANK)
+            if blk[0] == 'para':
+                L += self._wrap_tokens(self._tokens(blk[1]), base, 0)
+            else:
+                _, nest, marker, text = blk
+                indent = base + nest * 2
+                tokens = [(marker, False)] + self._tokens(text)
+                L += self._wrap_tokens(tokens, indent, len(marker) + 1)
+            prev = blk
+        return L
+
+    def _status(self, left_text, keys):
+        if self.flash:
+            left_text = f"{left_text} · {self.flash}"
+        y = self.height - 1
+        attr = self.curses.A_REVERSE
+        self._put(y, 0, ' ' * self.width, attr)
+        self._put(y, self.left, left_text[:max(0, self.width - 2 * self.left)], attr)
+        kx = self.width - len(keys) - 1
+        if kx > self.left + min(len(left_text), self.width) + 1:
+            self._put(y, kx, keys, attr)
+
+    # ── content building ─────────────────────────────────────────────────────
+
+    def _heading_label(self, node):
+        num = node.get('number') or ''
+        return f"{num} {node['title']}".strip() if num else node['title']
+
+    def _section_tags(self, sec):
+        """Ordered, de-duplicated tags of a section and all its children."""
+        seen: list[str] = []
+        for node in [sec] + sec['children']:
+            for t in node['tags']:
+                if t not in seen:
+                    seen.append(t)
+        return seen
+
+    def _content_lines(self, sec):
+        """Build the rendered lines for the active tab of the given section."""
+        bold = self.curses.A_BOLD
+        L = []
+        if self.tab == 0:        # Main
+            L += self._heading_line(sec, indent=0)
+            L += self._render_body(sec['body'], base=0)
+            for ch in sec['children']:
+                indent = (ch['level'] - 1) * 2   # deeper headings indent more
+                L.append(self.BLANK)
+                L += self._heading_line(ch, indent=indent)
+                L += self._render_body(ch['body'], base=indent + 2)
+            if not sec['body'] and not sec['children']:
+                L += self._line("(no content)")
+        elif self.tab == 1:      # Properties
+            blocks = [n for n in [sec] + sec['children'] if n['properties']]
+            if not blocks:
+                L += self._line("(no properties)")
+            for bi, node in enumerate(blocks):
+                if bi > 0:
+                    L.append(self.BLANK)
+                L += self._line(self._heading_label(node), attr=bold)
+                for k, v in node['properties']:
+                    L += self._line(f"{k}: {v}", indent=2)
+        else:                    # Tags
+            tags = self._section_tags(sec)
+            if not tags:
+                L += self._line("(no tags)")
+            for t in tags:
+                L += self._line(f":{t}:")
+        return L
+
+    # ── rendering ────────────────────────────────────────────────────────────
+
+    def render(self):
+        self.stdscr.erase()
+        self._recompute_geometry()
+        if self.mode == 'detail' and self.sections:
+            self._render_detail()
+        else:
+            self.mode = 'list'
+            self._render_list()
+        self.stdscr.refresh()
+
+    def _render_list(self):
+        curses = self.curses
+        top = self.tmargin
+        if self.height >= 6:
+            self._put(self.tmargin, self.left, f"☰ {self._doc_name()}", curses.A_BOLD)
+            top = self.tmargin + 2   # header + blank line
+        avail = max(1, self.height - top - 1)
+        n = len(self.sections)
+
+        if self.sel < self.list_top:
+            self.list_top = self.sel
+        elif self.sel >= self.list_top + avail:
+            self.list_top = self.sel - avail + 1
+
+        if n == 0:
+            self._put(top, self.left, "(no headings)")
+        for r in range(avail):
+            idx = self.list_top + r
+            if idx >= n:
+                break
+            label = ' ' + self._heading_label(self.sections[idx])
+            attr = curses.A_REVERSE if idx == self.sel else 0
+            self._put(top + r, self.left, label.ljust(self.cw)[:self.cw], attr)
+
+        self._status(f"{self.sel + 1}/{n}" if n else "0/0",
+                     "[↑↓] [ent]open [q]quit")
+
+    def _draw_tabbar(self, y):
+        curses = self.curses
+        labels = ['Main', 'Properties', 'Tags']
+        short = ['Main', 'Props', 'Tags']
+        self._put(y, 0, ' ' * self.width)
+
+        def fits(ls):
+            return self.left + sum(len(l) for l in ls) + 2 * (len(ls) - 1) <= self.width
+
+        use = labels if fits(labels) else short if fits(short) else None
+        if use:
+            x = self.left
+            for i, l in enumerate(use):
+                self._put(y, x, l, curses.A_REVERSE if i == self.tab else 0)
+                x += len(l) + 2
+        else:
+            self._put(y, self.left, f"‹{short[self.tab]} {self.tab + 1}/3›",
+                      curses.A_REVERSE)
+
+    def _render_detail(self):
+        sec = self.sections[self.sel]
+        self._draw_tabbar(self.tmargin)
+        # A blank line between the tab bar and the content (dropped only on a
+        # terminal too short to spare the row), after the top margin.
+        gap = 1 if self.height >= 5 else 0
+        top = self.tmargin + 1 + gap
+        avail = max(1, self.height - top - 1)
+        lines = self._content_lines(sec)
+        maxscroll = max(0, len(lines) - avail)
+        self.scroll = max(0, min(self.scroll, maxscroll))
+        for r, line in enumerate(lines[self.scroll:self.scroll + avail]):
+            self._draw_line(top + r, line)
+
+        if self.tab == 2:
+            keys = "[n/p]sec [tab][↑↓] [ent]follow [bksp]back"
+        else:
+            keys = "[n/p]sec [tab]tab [↑↓]scroll [bksp]back"
+        pos = ""
+        if len(lines) > avail:
+            pos = f" {self.scroll + 1}-{min(self.scroll + avail, len(lines))}/{len(lines)}"
+        self._status(f"{self.sel + 1}/{len(self.sections)} {self._heading_label(sec)}" + pos, keys)
+
+    # ── tag following ────────────────────────────────────────────────────────
+
+    def follow_tag(self):
+        sec = self.sections[self.sel]
+        tags = self._section_tags(sec)
+        if not tags:
+            self.flash = "no tags here"
+            return
+        tag = tags[0] if len(tags) == 1 else self._pick_tag(tags)
+        if tag is not None:
+            self._show_tag_results(tag)
+
+    def _menu(self, title, items, render_item):
+        """Run a blocking up/down menu; return the chosen index or None."""
+        curses = self.curses
+        self.stdscr.timeout(-1)
+        sel = 0
+        try:
+            while True:
+                self.stdscr.erase()
+                self._recompute_geometry()
+                self._put(self.tmargin, self.left, title[:self.cw], curses.A_BOLD)
+                top = self.tmargin + (2 if self.height >= 6 else 1)
+                avail = max(1, self.height - top - 1)
+                if sel < avail:
+                    start = 0
+                else:
+                    start = sel - avail + 1
+                for r in range(avail):
+                    idx = start + r
+                    if idx >= len(items):
+                        break
+                    attr = curses.A_REVERSE if idx == sel else 0
+                    self._put(top + r, self.left,
+                              render_item(items[idx]).ljust(self.cw)[:self.cw], attr)
+                self._status(f"{sel + 1}/{len(items)}", "[↑↓] [ent]ok [esc]back")
+                self.stdscr.refresh()
+
+                k = self.stdscr.getch()
+                if k in (27, ord('q')):
+                    return None
+                elif k in (curses.KEY_UP, ord('k')):
+                    sel = max(0, sel - 1)
+                elif k in (curses.KEY_DOWN, ord('j')):
+                    sel = min(len(items) - 1, sel + 1)
+                elif k in (curses.KEY_ENTER, ord('\n'), ord('\r'), ord(' ')):
+                    return sel
+        finally:
+            self.stdscr.timeout(OUTLINE_POLL_MS)
+
+    def _pick_tag(self, tags):
+        i = self._menu("Follow which tag?", tags, lambda t: ' :' + t + ':')
+        return None if i is None else tags[i]
+
+    def _show_tag_results(self, tag):
+        matches = [idx for idx, sec in enumerate(self.sections)
+                   if tag in self._section_tags(sec)]
+        if not matches:
+            self.flash = f"no headings tagged :{tag}:"
+            return
+        i = self._menu(f"Tagged :{tag}:", matches,
+                       lambda idx: ' ' + self._heading_label(self.sections[idx]))
+        if i is not None:
+            self.sel = matches[i]
+            self.mode = 'detail'
+            self.tab = 0
+            self.scroll = 0
+
+    # ── input handling ───────────────────────────────────────────────────────
+
+    def _handle_list_key(self, k):
+        curses = self.curses
+        if k in (ord('q'), 27):
+            return False
+        elif k in (ord('r'), ord('R')):
+            self.refresh()
+        elif k in (curses.KEY_UP, ord('k')):
+            self.sel = max(0, self.sel - 1)
+        elif k in (curses.KEY_DOWN, ord('j')):
+            self.sel = min(max(0, len(self.sections) - 1), self.sel + 1)
+        elif k in (curses.KEY_ENTER, ord('\n'), ord('\r'), ord(' '),
+                   curses.KEY_RIGHT) and self.sections:
+            self.mode = 'detail'
+            self.tab = 0
+            self.scroll = 0
+        return True
+
+    def _go_section(self, step):
+        """Move to the next/previous section (wrapping), keeping the current tab."""
+        if self.sections:
+            self.sel = (self.sel + step) % len(self.sections)
+            self.scroll = 0
+
+    def _handle_detail_key(self, k):
+        curses = self.curses
+        if k in (ord('q'), 27, curses.KEY_BACKSPACE, 127, 8):
+            self.mode = 'list'
+        elif k in (ord('r'), ord('R')):
+            self.refresh()
+        elif k == ord('\t'):
+            self.tab = (self.tab + 1) % 3
+            self.scroll = 0
+        elif k == curses.KEY_BTAB:
+            self.tab = (self.tab - 1) % 3
+            self.scroll = 0
+        elif k in (ord('n'), curses.KEY_RIGHT):
+            self._go_section(1)
+        elif k in (ord('p'), curses.KEY_LEFT):
+            self._go_section(-1)
+        elif k in (curses.KEY_UP, ord('k')):
+            self.scroll = max(0, self.scroll - 1)
+        elif k in (curses.KEY_DOWN, ord('j')):
+            self.scroll += 1
+        elif k == curses.KEY_NPAGE:
+            self.scroll += max(1, self.height - 3)
+        elif k == curses.KEY_PPAGE:
+            self.scroll = max(0, self.scroll - max(1, self.height - 3))
+        elif k in (curses.KEY_ENTER, ord('\n'), ord('\r'), ord('f')) and self.tab == 2:
+            self.follow_tag()
+        return True
+
+    def run(self):
+        curses = self.curses
+        curses.curs_set(0)
+        self.stdscr.keypad(True)
+        self.stdscr.timeout(OUTLINE_POLL_MS)
+        self.render()
+        while True:
+            k = self.stdscr.getch()
+            if k == -1:
+                if self.files_changed():
+                    self.refresh()
+                    self.render()
+                continue
+            self.flash = None
+            if k == curses.KEY_RESIZE:
+                pass    # render() recomputes geometry
+            elif self.mode == 'list':
+                if not self._handle_list_key(k):
+                    break
+            else:
+                self._handle_detail_key(k)
+            self.render()
+
+
+def _choose_org_file(org_files: list[Path]) -> Path | None:
+    """Prompt (in plain text, before curses) for which .org file to open."""
+    print("Multiple .org files found:")
+    for i, p in enumerate(org_files, 1):
+        print(f"  {i}. {p.name}")
+    while True:
+        try:
+            raw = input(f"Open which? [1-{len(org_files)}] (q to cancel): ").strip()
+        except EOFError:
+            return None
+        if not raw or raw.lower() == 'q':
+            return None
+        if raw.isdigit() and 1 <= int(raw) <= len(org_files):
+            return org_files[int(raw) - 1]
+        print("Invalid selection.")
+
+
+def outline_view(base_path: Path) -> None:
+    """Open an .org file in the tabbed terminal outline view."""
+    org_files = sorted(p for p in base_path.glob('*.org') if p.is_file())
+    if not org_files:
+        print(f"No .org files found in {base_path}")
+        return
+    if len(org_files) == 1:
+        chosen = org_files[0]
+    else:
+        chosen = _choose_org_file(org_files)
+        if chosen is None:
+            return
+
+    try:
+        import curses
+    except ImportError:
+        print("Outline view requires the 'curses' module (available on Unix terminals).",
+              file=sys.stderr)
+        return
+
+    curses.wrapper(lambda stdscr: _Outline(stdscr, chosen).run())
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Bind chapter drafts into a manuscript ODT file with standard formatting.",
@@ -1473,6 +2116,11 @@ def main():
         '--read',
         action='store_true',
         help="Open the manuscript in an interactive terminal reader view"
+    )
+    parser.add_argument(
+        '--outline',
+        action='store_true',
+        help="Open a .org file from the current directory in a tabbed outline view"
     )
     parser.add_argument(
         '--output', '-o',
@@ -1576,7 +2224,8 @@ def main():
 
     base_path = Path(args.path).resolve()
 
-    if not args.init and not args.bind and not args.stats and not args.read:
+    if (not args.init and not args.bind and not args.stats
+            and not args.read and not args.outline):
         parser.print_help()
         return
 
@@ -1609,6 +2258,9 @@ def main():
         read_manuscript(base_path, heading_style=args.heading,
                         binding=args.binding, title=args.title,
                         short_title=args.short_title)
+
+    if args.outline:
+        outline_view(base_path)
 
 
 if __name__ == '__main__':

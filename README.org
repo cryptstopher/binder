@@ -37,6 +37,45 @@ The reader keeps itself in sync with your drafts: when you save, add, or
 remove a chapter file the view reloads automatically (keeping your place), and
 you can force a reload at any time with =r=.
 
+** Outline View
+
+=binder --outline= opens an =.org= file from the current directory in a tabbed
+outline browser. If the directory holds more than one =.org= file you are asked
+which to open. Each top-level (=*=) heading is a section; its sub-headings roll
+up into the section's content. Sections are listed in an up/down navigable pane;
+press Enter to open one in a tabbed detail view:
+
+- *Main* — the section title (with its org outline number, e.g. =1=, =1.1=, when
+  numbering is on) followed by the written contents as paragraphs.
+- *Properties* — every =:PROPERTIES:= drawer under the heading, grouped by
+  sub-heading.
+- *Tags* — the heading's tags. On this tab, Enter (or =f=) *follows* a tag: you
+  pick a tag and jump to a list of every heading that uses it.
+
+| Key            | Action                                  |
+|----------------+-----------------------------------------|
+| ↑ / ↓          | Move selection / scroll                 |
+| Enter          | Open section / follow tag (Tags tab)    |
+| n / p          | Next / previous section (in detail)     |
+| Tab            | Next tab (Main → Properties → Tags)     |
+| Backspace      | Back to the heading list                |
+| r              | Reload the file                         |
+| q              | Quit                                    |
+
+Inside a section you can step straight to the next or previous section with
+=n= / =p= (or → / ←) without returning to the list; the current tab is kept.
+Sub-headings are indented by depth, and unordered (=-=, =+=) and ordered
+(=1.=, =1)=) lists render with proper bullets/numbers and hanging indents.
+
+Like the reader, the outline keeps itself in sync with the file: when you save
+changes the view reloads automatically (keeping your selected section and place),
+and =r= forces a reload at any time.
+
+Section numbering follows org: it is on by default and turned off by
+=#+OPTIONS: num:nil=. The view is built for cramped, low-colour terminals — it
+stays legible down to roughly a 16×16 window, scrolls every pane, and draws with
+plain terminal attributes only (no colour pairs), so it works in monochrome.
+
 ** Features
 
 - Standard manuscript format (Courier or Times New Roman 12pt, double-spaced, 1" margins)
@@ -46,6 +85,7 @@ you can force a reload at any time with =r=.
 - Chapter headings (numeric, roman numerals, or title)
 - Scene breaks and emphasis markup
 - Manuscript statistics and Flesch readability scoring
+- Tabbed org-mode outline view (sections, properties, tags, tag-following)
 - TOML configuration file support
 
 ** Documentation
